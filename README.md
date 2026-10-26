@@ -7,13 +7,13 @@ Aplicación móvil del **Directorio de Comercios del Centro Comercial, Industria
 
 ## Integrantes
 
-| Nombre | Parte desarrollada |
-|---|---|
-| Elizabeth Laila Giribaldi Jatip | [@usuario](https://github.com/elijatip) | [Pantallas / módulos] |
-| Lamine Mechedou | [@usuario](https://github.com/Lamine-Mechedou)  | [Pantallas / módulos] |
-| Mairene Villasmil | [@usuario](https://github.com/Mairene-Villasmil) | [Pantallas / módulos] |
-| Rubí Nohemí García Alarcón | [@usuario](https://github.com/garciarubi) | [Pantallas / módulos] |
-| Valentina Angeletti | [@usuario](https://github.com/ValeAngeletti) | [Pantallas / módulos] |
+| Nombre | GitHub Personal | Parte desarrollada |
+|---|---|---|
+| Elizabeth Laila Giribaldi Jatip | [@elijatip](https://github.com/elijatip) | [Pantallas / módulos] |
+| Lamine Mechedou | [@Lamine-Mechedou](https://github.com/Lamine-Mechedou)  | [Pantallas / módulos] |
+| Mairene Villasmil | [@Mairene-Villasmil](https://github.com/Mairene-Villasmil) | [Pantallas / módulos] |
+| Rubí Nohemí García Alarcón | [@garciarubi](https://github.com/garciarubi) | [Pantallas / módulos] |
+| Valentina Angeletti | [@ValeAngeletti](https://github.com/ValeAngeletti) | [Pantallas / módulos] |
 
 ## Qué hace la app
 
