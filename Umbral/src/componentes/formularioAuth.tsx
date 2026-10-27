@@ -1,8 +1,8 @@
 import type { ComponentProps } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-// Piezas compartidas por las pantallas de cuenta (Parte 2).
-// TODO: tomar los colores de src/tema cuando esté (Parte 1).
+// Piezas compartidas por las pantallas de cuenta (Parte 2)
+// TODO: tomar los colores de src/tema cuando esté (Parte 1)
 export const C = {
   niebla: "#F2F4F7",
   salvia: "#CFE3D8",
