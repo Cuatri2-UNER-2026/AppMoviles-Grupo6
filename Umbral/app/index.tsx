@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { ingresar, salir } from "../src/servicios/auth";
@@ -63,6 +64,11 @@ export default function PruebaApi() {
           })
         }
       />
+
+      <Text style={estilos.titulo}>Pantallas de cuenta</Text>
+      <Boton texto="6. Ir a Ingresar" onPress={() => router.push("/login")} />
+      <Boton texto="7. Ir a Crear cuenta" onPress={() => router.push("/registro")} />
+      <Boton texto="8. Ir a Mi cuenta (Yo)" onPress={() => router.push("/yo")} />
 
       <Text style={estilos.resultado}>{resultado}</Text>
     </ScrollView>
