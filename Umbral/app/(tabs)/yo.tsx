@@ -30,7 +30,6 @@ import type { Comercio, Rubro, Usuario } from "../../src/tipos";
 function mensajeDe(e: unknown) {
   if (e instanceof ErrorApi) return e.message;
   console.error("[Yo]", e);
-  // En desarrollo mostramos el detalle para poder corregirlo.
   const detalle = __DEV__ && e instanceof Error ? `\n(${e.message})` : "";
   return `Algo salió mal. Probá de nuevo.${detalle}`;
 }
@@ -69,7 +68,6 @@ function SinSesion() {
   );
 }
 
-// Reingreso: huella o rostro si el teléfono los tiene; si no, la contraseña.
 function Bloqueada() {
   const [biometria, setBiometria] = useState<boolean | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -254,8 +252,6 @@ function Favoritos({ ids, onError }: { ids: string[]; onError: (m: string | null
         setComercios([]);
         onError(mensajeDe(e));
       });
-    // Se recarga cuando cambia la lista de favoritos.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clave]);
 
   async function quitar(id: string) {
@@ -309,7 +305,6 @@ function Rubros({ elegidos, onError }: { elegidos: string[]; onError: (m: string
         setRubros([]);
         onError(mensajeDe(e));
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function alternar(id: string) {

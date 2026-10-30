@@ -1,7 +1,38 @@
-import { Stack } from "expo-router";
+import { Tabs } from 'expo-router';
+import React from 'react';
 
-// PROVISORIO (puesto por la Parte 2 para poder probar la pestaña Yo).
-// La Parte 1 lo reemplaza por el menú de 4 pestañas.
-export default function TabsLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+export default function TabLayout() {
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#1A1D20',
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Inicio',
+        }}
+      />
+      <Tabs.Screen
+        name="promos"
+        options={{
+          title: 'Promos',
+        }}
+      />
+      <Tabs.Screen
+        name="mapa"
+        options={{
+          title: 'Mapa',
+        }}
+      />
+      <Tabs.Screen
+        name="yo"
+        options={{
+          title: 'Mi Cuenta',
+        }}
+      />
+    </Tabs>
+  );
 }
