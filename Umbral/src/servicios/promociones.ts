@@ -1,9 +1,9 @@
 import { obtenerToken } from '../almacenamiento/seguro';
-import { Promocion } from '../tipos/promocion';
+import type { Promocion } from '../tipos';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api-directorio-comercios.onrender.com';
 
-export { Promocion };
+export type { Promocion };
 
 export const promocionesService = {
   async obtenerTodas(): Promise<Promocion[]> {
