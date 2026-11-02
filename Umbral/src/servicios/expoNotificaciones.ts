@@ -2,7 +2,6 @@
 // En SDK 57 el index carga el módulo nativo de push por temas
 // (ExpoTopicSubscriptionModule), que Expo Go no trae, y la app se cae al abrir.
 // Importando cada función por separado sólo usamos lo de notificaciones locales.
-export { AndroidImportance } from "expo-notifications/build/NotificationChannelManager.types";
 export { SchedulableTriggerInputTypes } from "expo-notifications/build/Notifications.types";
 export { setNotificationHandler } from "expo-notifications/build/NotificationsHandler";
 export {
