@@ -21,15 +21,18 @@
     "web": {
       "output": "static"
     },
-    "plugins": [
-      "expo-router",
-      "expo-font",
-      "expo-image",
-      "expo-status-bar",
-      "expo-secure-store",
-      "expo-sqlite",
-      "expo-video"
-    ],
+"plugins": [
+  "expo-router",
+  "expo-font",
+  "expo-image",
+  "expo-status-bar",
+  "expo-secure-store",
+  "expo-sqlite",
+  "expo-video",
+  "expo-notifications",
+  "expo-local-authentication"
+],
+
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

@@ -1,16 +1,12 @@
-// contract/types.ts — «Directorio de Comercios · Concepción del Uruguay»
-// Copia literal de los tipos del PRD (sección «Resumen — qué entidades maneja la app»).
-// Es lo que los alumnos tienen en src/tipos/. NO SE MODIFICA.
-
 export interface Coordenadas {
   latitud: number;
   longitud: number;
 }
 
 export interface Horario {
-  dia: 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = domingo
-  abre: string; // "08:00"
-  cierra: string; // "12:00"
+  dia: 0 | 1 | 2 | 3 | 4 | 5 | 6; 
+  abre: string; 
+  cierra: string; 
 }
 
 export interface Comercio {
@@ -71,7 +67,7 @@ export interface UsoDePromocion {
   id: string;
   promocionId: string;
   usuarioId: string;
-  codigo: string; // lo que se muestra y se escanea
+  codigo: string; 
   validadoEn: string | null;
 }
 
