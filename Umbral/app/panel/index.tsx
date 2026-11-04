@@ -13,33 +13,46 @@ export default function PanelComercioScreen() {
   }, []);
 
   const cargarDatosPanel = async () => {
-    try {
-      const data = await promocionesService.obtenerPromociones();
-      setPromos(data);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setCargando(false);
-    }
-  };
+  try {
+    const data = await promocionesService.obtenerMisPromociones();
+    setPromos(data);
+  } catch (e) {
+    console.error("Error al cargar promociones del comercio:", e);
+  } finally {
+    setCargando(false);
+  }
+};
 
   const handleEliminarPromo = (id: string) => {
-    Alert.alert('Confirmar baja', '¿Estás seguro de que querés dar de baja esta promoción?', [
+  Alert.alert(
+    'Confirmar baja',
+    '¿Estás seguro de que querés dar de baja esta promoción?',
+    [
       { text: 'Cancelar', style: 'cancel' },
       {
-        text: 'Eliminar',
+        text: 'Dar de baja',
         style: 'destructive',
         onPress: async () => {
           try {
             await promocionesService.eliminarPromocion(id);
-            setPromos(prev => prev.filter(p => p.id !== id));
+
+            setPromos(prev =>
+              prev.map(p =>
+                p.id === id ? { ...p, activa: false } : p
+              )
+            );
+
           } catch (e: any) {
-            Alert.alert('Error', e.message || 'No se pudo eliminar la promoción');
+            Alert.alert(
+              'Error',
+              e.message || 'No se pudo dar de baja la promoción'
+            );
           }
         },
       },
-    ]);
-  };
+    ]
+  );
+};
 
   if (cargando) {
     return (
@@ -53,12 +66,31 @@ export default function PanelComercioScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.titulo}>Panel de Comercio</Text>
       <Text style={styles.subtitulo}>Gestión de promociones y escaneo de clientes</Text>
+      <TouchableOpacity 
+          style={styles.botonNueva} 
+          onPress={() => router.push("/panel/nueva" as any)}
+          >      
+        <Text style={styles.botonNuevaTexto}>＋ Nueva promoción</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.botonEscanear} onPress={() => router.push('/panel/escanear' as any)}>
         <Text style={styles.botonEscanearIcono}>📷</Text>
         <View style={{ flex: 1 }}>
           <Text style={styles.botonEscanearTitulo}>Escanear Código QR</Text>
           <Text style={styles.botonEscanearSub}>Validar descuento de cliente en caja</Text>
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.botonResenas}
+        onPress={() => router.push("/panel/resenas" as any)}
+      >
+        <Text style={styles.botonResenasIcono}>⭐</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.botonResenasTitulo}>Reseñas de clientes</Text>
+          <Text style={styles.botonResenasSub}>
+            Consultar opiniones y responder a tus clientes
+          </Text>
         </View>
       </TouchableOpacity>
 
@@ -70,13 +102,40 @@ export default function PanelComercioScreen() {
         ) : (
           promos.map((item) => (
             <View key={item.id} style={styles.card}>
+
               <View style={styles.cardHeader}>
-                <Text style={styles.cardDescuento}>{item.descuento}</Text>
-                <TouchableOpacity onPress={() => handleEliminarPromo(item.id)}>
-                  <Text style={styles.botonEliminar}>Dar de baja</Text>
-                </TouchableOpacity>
+                <Text style={styles.cardDescuento}>
+                  {item.descuento !== null ? `${item.descuento}%` : "Promoción"}
+                </Text>
+
+              <View style={styles.acciones}>
+                  {item.activa && new Date(item.hasta) >= new Date() && (
+                    <>
+                      <TouchableOpacity
+                          onPress={() =>
+                            router.push(`/panel/editar/${item.id}` as any)
+                          }
+                        >
+                          <Text style={styles.botonEditar}>Editar</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => handleEliminarPromo(item.id)}
+                      >
+                        <Text style={styles.botonEliminar}>Dar de baja</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
               </View>
+
               <Text style={styles.cardTitulo}>{item.titulo}</Text>
+              <Text style={styles.cardUsos}>
+                Usos: {item.usos}
+              </Text>
+              <Text style={styles.cardEstado}>
+                {item.activa ? "Activa" : "Dada de baja"}
+              </Text>
             </View>
           ))
         )}
@@ -102,4 +161,16 @@ const styles = StyleSheet.create({
   cardDescuento: { fontSize: 22, fontWeight: 'bold', color: '#1A1D20' },
   botonEliminar: { color: '#D9534F', fontSize: 13, fontWeight: '600' },
   cardTitulo: { fontSize: 15, color: '#495057', marginTop: 4 },
+  cardUsos: { fontSize: 13, color: "#6C757D", marginTop: 6 },
+  cardEstado: {fontSize: 12, color: "#6C757D", marginTop: 4 },
+  botonNueva: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#1A1D20", padding: 15, borderRadius: 12, alignItems: "center",
+  marginBottom: 20 },
+  botonNuevaTexto: { color: "#1A1D20", fontSize: 15, fontWeight: "bold" },
+  acciones: { flexDirection: "row", alignItems: "center", gap: 16 },
+  botonEditar: { color: "#2878B5", fontSize: 13, fontWeight: "600" },
+  botonResenas: { flexDirection: "row", backgroundColor: "#FFFFFF", padding: 20, borderRadius: 16, alignItems: "center", marginBottom: 24, gap: 16, borderWidth: 1, borderColor: "#E9ECEF" },
+  botonResenasIcono: { fontSize: 30 },
+  botonResenasTitulo: { color: "#1A1D20", fontSize: 18, fontWeight: "bold" },
+  botonResenasSub: { color: "#6C757D", fontSize: 13, marginTop: 2 },
+
 });

@@ -80,21 +80,34 @@ async function promosDeInteres(usuario: Usuario) {
     ...usuario.rubrosDeInteres.map((rubroId) => ({ rubroId })),
   ];
 
+  console.log("[avisos] Filtros del usuario:", filtros);
+
   const listas = await Promise.all(
-    filtros.map((f) =>
-      pedir<Promocion[]>("/promociones", {
-        params: { ...f, porPagina: 100 },
-      })
-        .then((r) => r.datos)
-        .catch(() => [] as Promocion[]),
-    ),
+    filtros.map(async (f) => {
+      try {
+        const r = await pedir<Promocion[]>("/promociones", {
+          params: { ...f, porPagina: 100 },
+        });
+
+        console.log("[avisos] Respuesta del filtro:", f, r.datos);
+
+        return r.datos;
+      } catch (error) {
+        console.error("[avisos] Error consultando filtro:", f, error);
+        return [] as Promocion[];
+      }
+    }),
   );
 
   const porId = new Map<string, Promocion>();
 
   listas.flat().forEach((p) => porId.set(p.id, p));
 
-  return [...porId.values()];
+  const resultado = [...porId.values()];
+
+  console.log("[avisos] Total de promociones encontradas:", resultado.length);
+
+  return resultado;
 }
 
 // Obtiene los nombres de los comercios.
@@ -144,6 +157,9 @@ export async function revisarPromos() {
   // Promociones nuevas.
   const avisadas = new Set(obtenerPromosAvisadas());
   const nuevas = promos.filter((p) => !avisadas.has(p.id));
+  console.log("[avisos] Promociones de interés:", promos.map(p => p.id));
+  console.log("[avisos] Promociones ya avisadas:", [...avisadas]);
+  console.log("[avisos] Promociones nuevas:", nuevas.map(p => p.id));
 
   // Promociones que todavía no vencieron.
   const recordadas = new Set(obtenerPromosRecordadas());
