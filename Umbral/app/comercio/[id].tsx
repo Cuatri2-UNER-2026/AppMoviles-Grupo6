@@ -1,29 +1,36 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Dimensions } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { VideoView, useVideoPlayer } from 'expo-video';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import * as Haptics from 'expo-haptics';
-// Importa tus servicios o componentes compartidos según corresponda
+
+const { width } = Dimensions.get('window');
 
 export default function ComercioDetalleScreen() {
   const { id } = useLocalSearchParams();
   const [isFavorite, setIsFavorite] = useState(false);
 
-  // Ejemplo de estado del comercio (esto luego se conectará con SQLite / base de datos)
+  // Comercio de ejemplo (puedes adaptarlo con datos reales o SQLite)
   const comercio = {
     nombre: "Comercio de Ejemplo",
-    descripcion: "Un lugar excelente para disfrutar y comprar de todo.",
+    descripcion: "Un lugar excelente para disfrutar, comprar y conocer.",
     horarios: "Lunes a Sábados de 09:00 a 20:00 hs",
     telefono: "+5493431234567",
     whatsapp: "+5493431234567",
     redes: "@comercioejemplo",
     mediosPago: ["Efectivo", "Tarjeta de Débito", "Mercado Pago"],
-    fotos: [], // Probar caso sin fotos
+    fotos: [], // Caso sin fotos probado
     cerradoPorVacaciones: false,
-    videoUrl: null, // Probar caso sin video
+    // URL de video de prueba (o null para probar el caso "sin video")
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", 
   };
 
-  // Manejador del botón de favorito con vibración háptica requerida
+  // Configuración del reproductor expo-video
+  const player = useVideoPlayer(comercio.videoUrl, (playerInstance) => {
+    playerInstance.loop = false;
+  });
+
+  // Manejador del botón de favorito con respuesta háptica
   const handleToggleFavorite = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsFavorite(!isFavorite);
@@ -55,7 +62,7 @@ export default function ComercioDetalleScreen() {
         <View style={styles.headerRow}>
           <Text style={styles.titulo}>{comercio.nombre}</Text>
           <TouchableOpacity onPress={handleToggleFavorite} style={styles.favButton}>
-            <Text>{isFavorite ? "❤️" : "🤍"}</Text>
+            <Text style={{ fontSize: 24 }}>{isFavorite ? "❤️" : "🤍"}</Text>
           </TouchableOpacity>
         </View>
 
@@ -66,6 +73,23 @@ export default function ComercioDetalleScreen() {
 
         <Text style={styles.seccionTitulo}>Medios de Pago</Text>
         <Text style={styles.textoComun}>{comercio.mediosPago.join(", ")}</Text>
+
+        {/* Sección de Video con expo-video (Requerimiento Parte 3) */}
+        <Text style={styles.seccionTitulo}>Video institucional</Text>
+        {comercio.videoUrl ? (
+          <View style={styles.videoContainer}>
+            <VideoView
+              player={player}
+              style={styles.video}
+              allowsFullscreen
+              allowsPictureInPicture
+            />
+          </View>
+        ) : (
+          <View style={styles.sinVideoContainer}>
+            <Text style={styles.sinVideoText}>🎥 Este comercio no cuenta con video institucional.</Text>
+          </View>
+        )}
 
         {/* Botones de Acción: Llamar, WhatsApp, Ir */}
         <View style={styles.accionesContainer}>
@@ -87,19 +111,23 @@ export default function ComercioDetalleScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   slider: { height: 220 },
-  foto: { width: 400, height: 220, resizeMode: 'cover' },
-  sinFotosContainer: { height: 180, backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center' },
+  foto: { width: width, height: 220, resizeMode: 'cover' },
+  sinFotosContainer: { height: 180, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' },
   sinFotosText: { color: '#666', fontSize: 16 },
   bannerVacaciones: { backgroundColor: '#ffcc00', padding: 10, alignItems: 'center' },
   textoVacaciones: { fontWeight: 'bold', color: '#333' },
   content: { padding: 16 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   titulo: { fontSize: 24, fontWeight: 'bold', flex: 1 },
-  favButton: { padding: 8, fontSize: 20 },
+  favButton: { padding: 4 },
   descripcion: { fontSize: 14, color: '#555', marginBottom: 16 },
-  seccionTitulo: { fontSize: 16, fontWeight: 'bold', marginTop: 12, marginBottom: 4, color: '#333' },
+  seccionTitulo: { fontSize: 16, fontWeight: 'bold', marginTop: 16, marginBottom: 6, color: '#333' },
   textoComun: { fontSize: 14, color: '#666', marginBottom: 8 },
-  accionesContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
+  videoContainer: { width: '100%', height: 200, backgroundColor: '#000', borderRadius: 8, overflow: 'hidden', marginVertical: 8 },
+  video: { width: '100%', height: '100%' },
+  sinVideoContainer: { padding: 16, backgroundColor: '#f9f9f9', borderRadius: 8, alignItems: 'center', marginVertical: 8 },
+  sinVideoText: { color: '#777', fontSize: 13, fontStyle: 'italic' },
+  accionesContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 24, marginBottom: 20 },
   botonAccion: { flex: 1, backgroundColor: '#007AFF', padding: 12, marginHorizontal: 4, borderRadius: 8, alignItems: 'center' },
   textoBoton: { color: '#fff', fontWeight: 'bold', fontSize: 14 }
 });
