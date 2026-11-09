@@ -5,18 +5,29 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "umbral",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Esta app requiere acceso a la cámara para escanear códigos QR de promociones."
-      }
+        "NSCameraUsageDescription": "Esta app requiere acceso a la cámara para escanear códigos QR de promociones.",
+        "NSLocationWhenInUseUsageDescription": "Umbral usa tu ubicación para mostrarte los comercios más cercanos y verte en el mapa."
+      },
+      "bundleIdentifier": "com.grupo6.umbral"
     },
     "android": {
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.grupo6.umbral",
+      "adaptiveIcon": {
+        "backgroundColor": "#F2F4F7",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      }
     },
     "web": {
       "output": "static"
@@ -31,11 +42,33 @@
       "expo-video",
       "expo-notifications",
       "expo-local-authentication",
-      "expo-splash-screen"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F2F4F7"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Umbral usa tu ubicación para mostrarte los comercios más cercanos y verte en el mapa."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Umbral usa la cámara para escanear los códigos QR de las promociones.",
+          "recordAudioAndroid": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "icon": "./assets/images/icon.png"
   }
 }

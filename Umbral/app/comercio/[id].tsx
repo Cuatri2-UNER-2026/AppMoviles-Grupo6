@@ -5,7 +5,6 @@ import {
   Dimensions,
   Image,
   Linking,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { obtenerComercio } from "../../src/servicios/comercios";
 import { alternarFavorito, esFavorito } from "../../src/servicios/favoritos";
 import { uriParaMostrar } from "../../src/servicios/archivos";
+import { abrirComoLlegar } from "../../src/utils/comoLlegar";
 import { useSesion } from "../../src/hooks/useSesion";
 import { ErrorApi } from "../../src/servicios/cliente";
 import type { Comercio, Horario } from "../../src/tipos";
@@ -125,23 +125,13 @@ export default function ComercioDetalleScreen() {
 
   // Según la API (decisión D2), un comercio cerrado por vacaciones viene sin horarios.
   const cerradoPorVacaciones = comercio.horarios.length === 0;
-  const { latitud, longitud } = comercio.coordenadas;
 
   const llamar = () => abrir(`tel:${comercio.telefono}`, "Este teléfono no puede hacer llamadas.");
   const whatsapp = () =>
     abrir(`https://wa.me/${soloDigitos(comercio.whatsapp ?? "")}`, "No se pudo abrir WhatsApp.");
   const instagram = () =>
     abrir(`https://instagram.com/${(comercio.instagram ?? "").replace(/^@/, "")}`, "No se pudo abrir Instagram.");
-  const comoLlegar = () => {
-    const etiqueta = encodeURIComponent(comercio.nombre);
-    const url = Platform.select({
-      ios: `maps:0,0?q=${etiqueta}@${latitud},${longitud}`,
-      default: `geo:0,0?q=${latitud},${longitud}(${etiqueta})`,
-    });
-    Linking.openURL(url).catch(() =>
-      abrir(`https://www.google.com/maps/search/?api=1&query=${latitud},${longitud}`, "No se pudo abrir el mapa."),
-    );
-  };
+  const comoLlegar = () => abrirComoLlegar(comercio.coordenadas, comercio.nombre);
 
   return (
     <ScrollView style={styles.container}>
