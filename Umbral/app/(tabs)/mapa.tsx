@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Chip } from "../../src/componentes/ui";
+import { Chip, TarjetaVidrio } from "../../src/componentes/ui";
 import { useDirectorio } from "../../src/hooks/useDirectorio";
 import { useUbicacion } from "../../src/hooks/useUbicacion";
 import { colores, fuentes, radio } from "../../src/tema";
@@ -157,7 +157,8 @@ export default function Mapa() {
       )}
 
       {seleccionado && (
-        <View style={estilos.tarjeta}>
+        <TarjetaVidrio style={estilos.tarjeta} intensidad={60}>
+          <View style={{ gap: 4 }}>
           <View style={estilos.filaTitulo}>
             <View style={[estilos.punto, { backgroundColor: rubro?.color ?? colores.acento }]} />
             <Text style={estilos.nombre} numberOfLines={1}>
@@ -192,7 +193,8 @@ export default function Mapa() {
               <Text style={estilos.textoBoton}>Cómo llegar</Text>
             </Pressable>
           </View>
-        </View>
+  </View>
+        </TarjetaVidrio>
       )}
     </View>
   );
@@ -242,10 +244,6 @@ const estilos = StyleSheet.create({
     left: 12,
     right: 12,
     bottom: 16,
-    backgroundColor: colores.superficie,
-    borderRadius: radio.l,
-    padding: 16,
-    gap: 4,
     ...sombra,
   },
   filaTitulo: { flexDirection: "row", alignItems: "center", gap: 8 },
