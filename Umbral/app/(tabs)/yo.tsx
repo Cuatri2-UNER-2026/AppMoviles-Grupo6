@@ -253,7 +253,7 @@ function Favoritos({ ids, onError }: { ids: string[]; onError: (m: string | null
         setComercios([]);
         onError(mensajeDe(e));
       });
-  }, [clave]);
+  }, [clave, onError]);
 
   async function quitar(id: string) {
     try {
@@ -306,15 +306,23 @@ function Rubros({ elegidos, onError }: { elegidos: string[]; onError: (m: string
         setRubros([]);
         onError(mensajeDe(e));
       });
-  }, []);
+  }, [onError]);
 
+  const [guardando, setGuardando] = useState(false);
+
+  // Uno a la vez: si se tocan dos rubros seguidos, el segundo pedido
+  // se armaría con la lista vieja y borraría el primero.
   async function alternar(id: string) {
+    if (guardando) return;
     const nuevos = elegidos.includes(id) ? elegidos.filter((r) => r !== id) : [...elegidos, id];
+    setGuardando(true);
     try {
       await actualizarYo({ rubrosDeInteres: nuevos });
       revisarPromos().catch(() => {});
     } catch (e) {
       onError(mensajeDe(e));
+    } finally {
+      setGuardando(false);
     }
   }
 
@@ -330,6 +338,7 @@ function Rubros({ elegidos, onError }: { elegidos: string[]; onError: (m: string
             <Pressable
               key={r.id}
               onPress={() => alternar(r.id)}
+              disabled={guardando}
               style={[
                 estilos.chipGrande,
                 activo && { backgroundColor: C.pizarra, borderColor: C.pizarra },

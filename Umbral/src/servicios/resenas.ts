@@ -1,14 +1,9 @@
-
-import { obtenerToken } from "../almacenamiento/seguro";
-import { obtenerYo } from "./auth";
 import type { Resena } from "../tipos";
-
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  "https://api-directorio-comercios.onrender.com";
+import { obtenerYo } from "./auth";
+import { pedir } from "./cliente";
 
 export const resenasService = {
-  // Obtener las reseñas del comercio autenticado.
+  // Reseñas del comercio de la cuenta autenticada.
   async obtenerMisResenas(): Promise<Resena[]> {
     const usuario = await obtenerYo();
 
@@ -19,65 +14,21 @@ export const resenasService = {
     return this.obtenerDeComercio(usuario.comercioId);
   },
 
-  // Obtener las reseñas de un comercio.
-  async obtenerDeComercio(
-    comercioId: string,
-    pagina: number = 1,
-    porPagina: number = 20
-  ): Promise<Resena[]> {
-    const token = await obtenerToken();
-
-    const url =
-      `${API_URL}/comercios/${encodeURIComponent(comercioId)}/resenas?pagina=${pagina}&porPagina=${porPagina}`;
-
-    const res = await fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
-
-    const json = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error(
-        json?.error?.mensaje || "Error al obtener las reseñas"
-      );
-    }
-
-    return json?.datos ?? [];
+  // Reseñas de un comercio, de la más nueva a la más vieja.
+  async obtenerDeComercio(comercioId: string, pagina = 1, porPagina = 100): Promise<Resena[]> {
+    const { datos } = await pedir<Resena[]>(
+      `/comercios/${encodeURIComponent(comercioId)}/resenas`,
+      { params: { pagina, porPagina } },
+    );
+    return datos ?? [];
   },
 
-  // Responder una reseña como comercio.
-  async responder(
-    resenaId: string,
-    respuesta: string
-  ): Promise<Resena> {
-    const token = await obtenerToken();
-
-    const res = await fetch(
-      `${API_URL}/resenas/${encodeURIComponent(resenaId)}/respuesta`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          respuesta: respuesta.trim(),
-        }),
-      }
+  // El comercio responde una reseña (una sola vez).
+  async responder(resenaId: string, respuesta: string): Promise<Resena> {
+    const { datos } = await pedir<Resena>(
+      `/resenas/${encodeURIComponent(resenaId)}/respuesta`,
+      { metodo: "POST", cuerpo: { respuesta: respuesta.trim() } },
     );
-
-    const json = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error(
-        json?.error?.mensaje || "No se pudo responder la reseña"
-      );
-    }
-
-    return json.datos;
+    return datos;
   },
 };
-

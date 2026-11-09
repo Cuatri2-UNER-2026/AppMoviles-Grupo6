@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -18,14 +18,17 @@ import {
   ActualizarPromocionInput,
 } from "../../../src/servicios/promociones";
 
+// Las fechas se cargan y se guardan en hora de Argentina (-03:00),
+// sin importar la zona horaria del teléfono.
 const fechaParaInput = (valor: string) => {
   const fecha = new Date(valor);
 
   if (isNaN(fecha.getTime())) return "";
 
-  const anio = fecha.getFullYear();
-  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
-  const dia = String(fecha.getDate()).padStart(2, "0");
+  const enArgentina = new Date(fecha.getTime() - 3 * 60 * 60 * 1000);
+  const anio = enArgentina.getUTCFullYear();
+  const mes = String(enArgentina.getUTCMonth() + 1).padStart(2, "0");
+  const dia = String(enArgentina.getUTCDate()).padStart(2, "0");
 
   return `${anio}-${mes}-${dia}`;
 };
@@ -58,11 +61,7 @@ export default function EditarPromocionScreen() {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
-  useEffect(() => {
-    cargarPromocion();
-  }, [id]);
-
-  const cargarPromocion = async () => {
+  const cargarPromocion = useCallback(async () => {
     try {
       setCargando(true);
 
@@ -97,7 +96,12 @@ export default function EditarPromocionScreen() {
     } finally {
       setCargando(false);
     }
-  };
+  }, [id, router]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial
+    cargarPromocion();
+  }, [cargarPromocion]);
 
   const guardarCambios = async () => {
     if (!promocion) return;

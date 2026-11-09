@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { promocionesService, Promocion } from '../../src/servicios/promociones';
 
 export default function PanelComercioScreen() {
@@ -8,20 +8,27 @@ export default function PanelComercioScreen() {
   const [promos, setPromos] = useState<Promocion[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  useEffect(() => {
-    cargarDatosPanel();
+  // Se recarga cada vez que la pantalla vuelve a estar visible
+  // (por ejemplo, al volver de crear o editar una promoción).
+  const cargarDatosPanel = useCallback(async () => {
+    try {
+      const data = await promocionesService.obtenerMisPromociones();
+      setPromos(data);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'No se pudieron cargar tus promociones.');
+    } finally {
+      setCargando(false);
+    }
   }, []);
 
-  const cargarDatosPanel = async () => {
-  try {
-    const data = await promocionesService.obtenerMisPromociones();
-    setPromos(data);
-  } catch (e) {
-    console.error("Error al cargar promociones del comercio:", e);
-  } finally {
-    setCargando(false);
-  }
-};
+  useFocusEffect(
+    useCallback(() => {
+      cargarDatosPanel();
+    }, [cargarDatosPanel])
+  );
+
+  const vigente = (p: Promocion) => p.activa && new Date(p.hasta) >= new Date();
+  const activas = promos.filter(vigente).length;
 
   const handleEliminarPromo = (id: string) => {
   Alert.alert(
@@ -94,7 +101,7 @@ export default function PanelComercioScreen() {
         </View>
       </TouchableOpacity>
 
-      <Text style={styles.seccionTitulo}>Promociones Activas ({promos.length})</Text>
+      <Text style={styles.seccionTitulo}>Promociones ({activas} activas de {promos.length})</Text>
 
       <View style={styles.lista}>
         {promos.length === 0 ? (
@@ -109,7 +116,7 @@ export default function PanelComercioScreen() {
                 </Text>
 
               <View style={styles.acciones}>
-                  {item.activa && new Date(item.hasta) >= new Date() && (
+                  {vigente(item) && (
                     <>
                       <TouchableOpacity
                           onPress={() =>
@@ -134,7 +141,7 @@ export default function PanelComercioScreen() {
                 Usos: {item.usos}
               </Text>
               <Text style={styles.cardEstado}>
-                {item.activa ? "Activa" : "Dada de baja"}
+                {!item.activa ? "Dada de baja" : vigente(item) ? "Activa" : "Vencida"}
               </Text>
             </View>
           ))

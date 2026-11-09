@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -19,61 +19,70 @@ export default function EscanearScreen() {
   const [autenticado, setAutenticado] = useState(false);
   const [escaneado, setEscaneado] = useState(false);
 
-  useEffect(() => {
-    verificarBiometria();
-  }, []);
+  // Bloqueo síncrono: la cámara puede leer el mismo QR varias veces
+  // antes de que el estado se actualice, y eso validaría el código dos veces.
+  const procesando = useRef(false);
 
-  const verificarBiometria = async () => {
+  const verificarBiometria = useCallback(async () => {
     try {
       const tieneBiometria = await LocalAuthentication.hasHardwareAsync();
       const estaEnrolado = await LocalAuthentication.isEnrolledAsync();
 
-      if (tieneBiometria && estaEnrolado) {
-        const resultado = await LocalAuthentication.authenticateAsync({
-          promptMessage: 'Confirmá tu identidad para escanear el QR',
-          fallbackLabel: 'Usar contraseña del dispositivo',
-        });
+      // Sin huella ni rostro configurados se usa el PIN o patrón del teléfono.
+      const resultado = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Confirmá tu identidad para escanear el QR',
+        fallbackLabel: 'Usar el PIN del teléfono',
+        cancelLabel: 'Cancelar',
+      });
 
-        if (resultado.success) {
-          setAutenticado(true);
-        } else {
-          Alert.alert(
-            'Autenticación fallida',
-            'No se pudo verificar la identidad.'
-          );
-        }
-      } else {
+      if (resultado.success) {
         setAutenticado(true);
+      } else if (!tieneBiometria || !estaEnrolado) {
+        Alert.alert(
+          'Sin seguridad configurada',
+          'Configurá una huella, rostro o PIN en el teléfono para poder escanear códigos.'
+        );
+      } else {
+        Alert.alert('Autenticación fallida', 'No se pudo verificar la identidad.');
       }
-    } catch (e) {
-      setAutenticado(true);
+    } catch {
+      // Ante un error no se habilita el escaneo.
+      Alert.alert('Error', 'No se pudo verificar la identidad. Probá de nuevo.');
     }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial
+    verificarBiometria();
+  }, [verificarBiometria]);
+
+  const liberar = () => {
+    procesando.current = false;
+    setEscaneado(false);
   };
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
+    if (procesando.current) return;
+    procesando.current = true;
     setEscaneado(true);
 
     try {
       await promocionesService.validarCodigoQR(data);
 
-      await Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success
-      );
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       Alert.alert(
         '¡Promoción Validada!',
         'El código QR fue aceptado con éxito.',
-        [{ text: 'Aceptar', onPress: () => setEscaneado(false) }]
+        [{ text: 'Aceptar', onPress: liberar }]
       );
     } catch (e: any) {
-      await Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Error
-      );
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       Alert.alert(
         'Error de Validación',
-        e.message || 'Código inválido o expirado.',
-        [{ text: 'Reintentar', onPress: () => setEscaneado(false) }]
+        e?.message || 'Código inválido o expirado.',
+        [{ text: 'Reintentar', onPress: liberar }]
       );
     }
   };
@@ -147,7 +156,7 @@ export default function EscanearScreen() {
       {escaneado && (
         <TouchableOpacity
           style={styles.botonReescanear}
-          onPress={() => setEscaneado(false)}
+          onPress={liberar}
         >
           <Text style={styles.botonTexto}>Escanear de nuevo</Text>
         </TouchableOpacity>

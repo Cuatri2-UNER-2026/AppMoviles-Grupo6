@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -25,30 +25,32 @@ export default function PromosScreen() {
   const [refrescando, setRefrescando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const cargarPromociones = async (estado: EstadoPromo = tabActiva) => {
+  // Número de pedido: si llega la respuesta de una pestaña anterior, se descarta.
+  const pedidoActual = useRef(0);
+
+  const cargarPromociones = useCallback(async (estado: EstadoPromo) => {
+    const pedido = ++pedidoActual.current;
     try {
       setError(null);
-
       const data = await promocionesService.obtenerPromociones(estado);
-
-      console.log("Promociones recibidas:", data);
-
+      if (pedido !== pedidoActual.current) return;
       setPromos(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      console.log("Error al cargar promociones:", err);
-
-      setError(err.message || "Error al obtener las promociones");
+      if (pedido !== pedidoActual.current) return;
+      setError(err?.message || "Error al obtener las promociones");
       setPromos([]);
     } finally {
-      setCargando(false);
-      setRefrescando(false);
+      if (pedido === pedidoActual.current) {
+        setCargando(false);
+        setRefrescando(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
-    setCargando(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga desde la API al cambiar de pestaña
     cargarPromociones(tabActiva);
-  }, [tabActiva]);
+  }, [tabActiva, cargarPromociones]);
 
   const cambiarTab = (estado: EstadoPromo) => {
     if (estado !== tabActiva) {
@@ -59,7 +61,7 @@ export default function PromosScreen() {
 
   const onRefresh = () => {
     setRefrescando(true);
-    cargarPromociones();
+    cargarPromociones(tabActiva);
   };
 
   const formatearFecha = (fecha: string) => {
@@ -151,7 +153,7 @@ export default function PromosScreen() {
             style={styles.botonReintentar}
             onPress={() => {
               setCargando(true);
-              cargarPromociones();
+              cargarPromociones(tabActiva);
             }}
           >
             <Text style={styles.botonReintentarTexto}>
@@ -189,7 +191,7 @@ export default function PromosScreen() {
                 )}
 
                 <Text style={styles.cardPorcentaje}>
-                  {item.descuento !== null
+                  {item.descuento != null
                     ? `${item.descuento}%`
                     : "PROMO"}
                 </Text>

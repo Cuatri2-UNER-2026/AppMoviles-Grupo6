@@ -43,6 +43,7 @@ export default function ResenasScreen() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial desde la API
     cargarResenas();
   }, [cargarResenas]);
 

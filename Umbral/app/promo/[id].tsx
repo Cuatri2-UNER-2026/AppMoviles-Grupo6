@@ -14,14 +14,18 @@ import {
   promocionesService,
   Promocion,
 } from '../../src/servicios/promociones';
+import { useSesion } from '../../src/hooks/useSesion';
 
 export default function DetallePromoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const sesion = useSesion();
+  const esVecino = sesion.estado === 'activa' && sesion.usuario.rol === 'vecino';
 
   const [promo, setPromo] = useState<Promocion | null>(null);
   const [codigoQR, setCodigoQR] = useState<string | null>(null);
   const [mensajeQR, setMensajeQR] = useState('');
+  const [usado, setUsado] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [cargandoQR, setCargandoQR] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +50,7 @@ export default function DetallePromoScreen() {
 
         setPromo(data);
 
-        if (data.soloApp) {
+        if (data.soloApp && esVecino) {
           setCargandoQR(true);
           setMensajeQR('');
 
@@ -60,11 +64,10 @@ export default function DetallePromoScreen() {
             );
 
             if (!usoEncontrado) {
-              setMensajeQR(
-                'Todavía no tenés un código de canje para esta promoción.'
-              );
+              setMensajeQR('Todavía no generaste tu código para esta promoción.');
             } else if (usoEncontrado.validadoEn) {
-              setMensajeQR('Este código ya fue utilizado.');
+              setMensajeQR('Ya usaste esta promoción.');
+              setUsado(true);
             } else {
               setCodigoQR(usoEncontrado.codigo);
             }
@@ -96,7 +99,21 @@ export default function DetallePromoScreen() {
     return () => {
       activo = false;
     };
-  }, [id]);
+  }, [id, esVecino]);
+
+  const generarCodigo = async () => {
+    if (!promo) return;
+    setCargandoQR(true);
+    setMensajeQR('');
+    try {
+      const uso = await promocionesService.generarCodigo(promo.id);
+      setCodigoQR(uso.codigo);
+    } catch (err: any) {
+      setMensajeQR(err?.message || 'No se pudo generar el código.');
+    } finally {
+      setCargandoQR(false);
+    }
+  };
 
   if (cargando) {
     return (
@@ -186,10 +203,33 @@ export default function DetallePromoScreen() {
                 {codigoQR}
               </Text>
             </>
+          ) : !esVecino ? (
+            <>
+              <Text style={styles.qrPendiente}>
+                {sesion.estado === 'activa'
+                  ? 'Los códigos son para cuentas de vecino.'
+                  : 'Ingresá a tu cuenta para obtener tu código.'}
+              </Text>
+              {sesion.estado !== 'activa' && (
+                <TouchableOpacity
+                  style={styles.botonVolver}
+                  onPress={() => router.push(sesion.estado === 'bloqueada' ? '/yo' : '/login')}
+                >
+                  <Text style={styles.botonVolverTexto}>Ingresar</Text>
+                </TouchableOpacity>
+              )}
+            </>
           ) : (
-            <Text style={styles.qrPendiente}>
-              {mensajeQR}
-            </Text>
+            <>
+              {!!mensajeQR && (
+                <Text style={styles.qrPendiente}>{mensajeQR}</Text>
+              )}
+              {!usado && (
+                <TouchableOpacity style={styles.botonVolver} onPress={generarCodigo}>
+                  <Text style={styles.botonVolverTexto}>Obtener mi código</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
       )}
