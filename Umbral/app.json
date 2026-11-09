@@ -63,6 +63,14 @@
           "cameraPermission": "Umbral usa la cámara para escanear los códigos QR de las promociones.",
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Umbral usa tus fotos para que el comercio cargue imágenes y video en su ficha.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

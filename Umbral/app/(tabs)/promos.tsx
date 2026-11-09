@@ -5,9 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import { Chip, EstadoCarga, EstadoError, EstadoVacio } from "../../src/componentes/ui";
+import { useDirectorio } from "../../src/hooks/useDirectorio";
 import { useRouter } from "expo-router";
 import {
   promocionesService,
@@ -24,15 +25,18 @@ export default function PromosScreen() {
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rubroId, setRubroId] = useState<string | null>(null);
+  // Los rubros salen del mismo directorio que usan Buscar y Mapa.
+  const { datos: directorio } = useDirectorio();
 
   // Número de pedido: si llega la respuesta de una pestaña anterior, se descarta.
   const pedidoActual = useRef(0);
 
-  const cargarPromociones = useCallback(async (estado: EstadoPromo) => {
+  const cargarPromociones = useCallback(async (estado: EstadoPromo, rubro: string | null) => {
     const pedido = ++pedidoActual.current;
     try {
       setError(null);
-      const data = await promocionesService.obtenerPromociones(estado);
+      const data = await promocionesService.obtenerPromociones(estado, rubro ?? undefined);
       if (pedido !== pedidoActual.current) return;
       setPromos(Array.isArray(data) ? data : []);
     } catch (err: any) {
@@ -49,8 +53,8 @@ export default function PromosScreen() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- carga desde la API al cambiar de pestaña
-    cargarPromociones(tabActiva);
-  }, [tabActiva, cargarPromociones]);
+    cargarPromociones(tabActiva, rubroId);
+  }, [tabActiva, rubroId, cargarPromociones]);
 
   const cambiarTab = (estado: EstadoPromo) => {
     if (estado !== tabActiva) {
@@ -61,7 +65,7 @@ export default function PromosScreen() {
 
   const onRefresh = () => {
     setRefrescando(true);
-    cargarPromociones(tabActiva);
+    cargarPromociones(tabActiva, rubroId);
   };
 
   const formatearFecha = (fecha: string) => {
@@ -138,29 +142,46 @@ export default function PromosScreen() {
         </TouchableOpacity>
       </View>
 
-      {cargando ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#1A1D20" />
-          <Text style={styles.cargandoTexto}>
-            Cargando promociones...
-          </Text>
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.errorTexto}>{error}</Text>
-
-          <TouchableOpacity
-            style={styles.botonReintentar}
+      {!!directorio?.rubros.length && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtros}
+          contentContainerStyle={styles.filtrosContenido}
+        >
+          <Chip
+            texto="Todos los rubros"
+            activo={!rubroId}
             onPress={() => {
               setCargando(true);
-              cargarPromociones(tabActiva);
+              setRubroId(null);
             }}
-          >
-            <Text style={styles.botonReintentarTexto}>
-              Reintentar
-            </Text>
-          </TouchableOpacity>
-        </View>
+          />
+          {directorio.rubros.map((r) => (
+            <Chip
+              key={r.id}
+              texto={r.nombre}
+              color={r.color}
+              activo={rubroId === r.id}
+              onPress={() => {
+                setCargando(true);
+                setRubroId(rubroId === r.id ? null : r.id);
+              }}
+            />
+          ))}
+        </ScrollView>
+      )}
+
+      {cargando ? (
+        <EstadoCarga texto="Cargando promociones..." />
+      ) : error ? (
+        <EstadoError
+          mensaje={error}
+          onReintentar={() => {
+            setCargando(true);
+            cargarPromociones(tabActiva, rubroId);
+          }}
+        />
       ) : (
         <ScrollView
           contentContainerStyle={styles.lista}
@@ -172,9 +193,15 @@ export default function PromosScreen() {
           }
         >
           {promos.length === 0 ? (
-            <Text style={styles.vacioTexto}>
-              No hay promociones disponibles en esta categoría.
-            </Text>
+            <EstadoVacio
+              icono="pricetags-outline"
+              titulo="No hay promociones acá"
+              texto={
+                rubroId
+                  ? "Este rubro no tiene promociones en esta categoría. Probá con otro rubro."
+                  : "No hay promociones disponibles en esta categoría por ahora."
+              }
+            />
           ) : (
             promos.map((item) => (
               <TouchableOpacity
@@ -221,33 +248,13 @@ export default function PromosScreen() {
 }
 
 const styles = StyleSheet.create({
+  filtros: { flexGrow: 0, marginBottom: 12 },
+  filtrosContenido: { gap: 8, paddingHorizontal: 2 },
   container: {
     flex: 1,
     backgroundColor: "#F8F9FA",
     paddingHorizontal: 16,
     paddingTop: 50,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  cargandoTexto: {
-    marginTop: 10,
-    color: "#6C757D",
-  },
-  errorTexto: {
-    color: "#D9534F",
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  vacioTexto: {
-    textAlign: "center",
-    color: "#6C757D",
-    marginTop: 40,
-    fontSize: 16,
   },
   titulo: {
     fontSize: 32,
@@ -318,15 +325,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6C757D",
     marginTop: 6,
-  },
-  botonReintentar: {
-    backgroundColor: "#1A1D20",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  botonReintentarTexto: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
   },
 });

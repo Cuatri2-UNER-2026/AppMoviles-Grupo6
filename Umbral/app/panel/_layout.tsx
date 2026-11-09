@@ -50,6 +50,7 @@ export default function PanelLayout() {
           }}
         />
         <Stack.Screen name="nueva" options={{ title: "Nueva promoción" }} />
+        <Stack.Screen name="editar/index" options={{ title: "Editar ficha" }} />
         <Stack.Screen name="editar/[id]" options={{ title: "Editar promoción" }} />
         {/* Estas dos tienen su propio botón para volver. */}
         <Stack.Screen name="escanear" options={{ headerShown: false }} />

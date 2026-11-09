@@ -80,6 +80,19 @@ export default function PanelComercioScreen() {
         <Text style={styles.botonNuevaTexto}>＋ Nueva promoción</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={styles.botonResenas}
+        onPress={() => router.push("/panel/editar" as any)}
+      >
+        <Text style={styles.botonResenasIcono}>🏪</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.botonResenasTitulo}>Editar ficha del comercio</Text>
+          <Text style={styles.botonResenasSub}>
+            Datos, horarios, fotos, video y medios de pago
+          </Text>
+        </View>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.botonEscanear} onPress={() => router.push('/panel/escanear' as any)}>
         <Text style={styles.botonEscanearIcono}>📷</Text>
         <View style={{ flex: 1 }}>

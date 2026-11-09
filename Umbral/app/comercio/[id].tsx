@@ -14,10 +14,11 @@ import {
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import * as Haptics from "expo-haptics";
-import { obtenerComercio } from "../../src/servicios/comercios";
+import { obtenerComercioConRespaldo } from "../../src/servicios/comercios";
 import { alternarFavorito, esFavorito } from "../../src/servicios/favoritos";
 import { uriParaMostrar } from "../../src/servicios/archivos";
 import { abrirComoLlegar } from "../../src/utils/comoLlegar";
+import { nombreMedioDePago } from "../../src/servicios/miComercio";
 import { useSesion } from "../../src/hooks/useSesion";
 import { ErrorApi } from "../../src/servicios/cliente";
 import type { Comercio, Horario } from "../../src/tipos";
@@ -56,13 +57,16 @@ export default function ComercioDetalleScreen() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [guardandoFav, setGuardandoFav] = useState(false);
+  const [desdeCopiaLocal, setDesdeCopiaLocal] = useState(false);
 
   const cargar = useCallback(async () => {
     if (!id) return;
     setCargando(true);
     setError(null);
     try {
-      setComercio(await obtenerComercio(id));
+      const r = await obtenerComercioConRespaldo(id);
+      setComercio(r.comercio);
+      setDesdeCopiaLocal(r.desdeCopiaLocal);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cargar el comercio.");
     } finally {
@@ -150,6 +154,12 @@ export default function ComercioDetalleScreen() {
         </View>
       )}
 
+      {desdeCopiaLocal && (
+        <View style={styles.bannerCopia}>
+          <Text style={styles.textoVacaciones}>Sin conexión: estás viendo la última copia guardada.</Text>
+        </View>
+      )}
+
       {cerradoPorVacaciones && (
         <View style={styles.bannerVacaciones}>
           <Text style={styles.textoVacaciones}>⚠️ Cerrado por vacaciones</Text>
@@ -192,7 +202,7 @@ export default function ComercioDetalleScreen() {
         {comercio.mediosDePago.length > 0 && (
           <>
             <Text style={styles.seccionTitulo}>Medios de pago</Text>
-            <Text style={styles.textoComun}>{comercio.mediosDePago.join(", ")}</Text>
+            <Text style={styles.textoComun}>{comercio.mediosDePago.map(nombreMedioDePago).join(", ")}</Text>
           </>
         )}
 
@@ -264,6 +274,7 @@ const styles = StyleSheet.create({
   sinFotosContainer: { height: 180, backgroundColor: "#f0f0f0", justifyContent: "center", alignItems: "center" },
   sinFotosText: { color: "#666", fontSize: 16 },
   bannerVacaciones: { backgroundColor: "#ffcc00", padding: 10, alignItems: "center" },
+  bannerCopia: { backgroundColor: "#E3E6EC", padding: 8, alignItems: "center" },
   textoVacaciones: { fontWeight: "bold", color: "#333" },
   content: { padding: 16 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },

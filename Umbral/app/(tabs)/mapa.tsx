@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import MapView, { Marker, type Region } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Chip } from "../../src/componentes/ui";
 import { useDirectorio } from "../../src/hooks/useDirectorio";
 import { useUbicacion } from "../../src/hooks/useUbicacion";
 import { colores, fuentes, radio } from "../../src/tema";
@@ -90,13 +91,14 @@ export default function Mapa() {
 
       <SafeAreaView edges={["top"]} style={estilos.arriba} pointerEvents="box-none">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.chips}>
-          <Chip texto="Todos" activo={!rubroId} onPress={() => setRubroId(null)} />
+          <Chip texto="Todos" activo={!rubroId} onPress={() => setRubroId(null)} conSombra />
           {datos?.rubros.map((r) => (
             <Chip
               key={r.id}
               texto={r.nombre}
               color={r.color}
               activo={rubroId === r.id}
+              conSombra
               onPress={() => {
                 setRubroId(rubroId === r.id ? null : r.id);
                 setSeleccionadoId(null);
@@ -196,25 +198,6 @@ export default function Mapa() {
   );
 }
 
-function Chip({
-  texto,
-  activo,
-  onPress,
-  color,
-}: {
-  texto: string;
-  activo: boolean;
-  onPress: () => void;
-  color?: string;
-}) {
-  return (
-    <Pressable onPress={onPress} style={[estilos.chip, activo && estilos.chipActivo]}>
-      {color && <View style={[estilos.punto, { backgroundColor: color }]} />}
-      <Text style={[estilos.textoChip, activo && { color: "#fff" }]}>{texto}</Text>
-    </Pressable>
-  );
-}
-
 const sombra = {
   shadowColor: "#000",
   shadowOpacity: 0.12,
@@ -227,18 +210,6 @@ const estilos = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: colores.fondo },
   arriba: { position: "absolute", top: 0, left: 0, right: 0, gap: 8 },
   chips: { gap: 8, paddingHorizontal: 12, paddingTop: 8 },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radio.pill,
-    backgroundColor: colores.superficie,
-    ...sombra,
-  },
-  chipActivo: { backgroundColor: colores.texto },
-  textoChip: { fontFamily: fuentes.cuerpoFuerte, fontSize: 13, color: colores.texto },
   punto: { width: 10, height: 10, borderRadius: 5 },
   aviso: {
     marginHorizontal: 12,

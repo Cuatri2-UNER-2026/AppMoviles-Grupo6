@@ -7,6 +7,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { AvisoSinConexion } from "../src/componentes/AvisoSinConexion";
 import { useAvisos } from "../src/hooks/useAvisos";
 import { colores, fuentes } from "../src/tema";
 
@@ -54,6 +55,7 @@ export default function RootLayout() {
         <Stack.Screen name="comercio/[id]" options={{ title: "Comercio" }} />
         <Stack.Screen name="prueba-api" options={{ title: "Prueba de la API" }} />
       </Stack>
+      <AvisoSinConexion />
     </>
   );
 }

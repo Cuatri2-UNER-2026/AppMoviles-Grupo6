@@ -1,8 +1,7 @@
-import { Ionicons, type IoniconsIconName } from "@react-native-vector-icons/ionicons";
+import { Ionicons } from "@react-native-vector-icons/ionicons";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -13,7 +12,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useDirectorio } from "../../src/hooks/useDirectorio";
+import { Chip, EstadoCarga, EstadoError, EstadoVacio } from "../../src/componentes/ui";
+import { datosViejos, useDirectorio } from "../../src/hooks/useDirectorio";
 import { useUbicacion } from "../../src/hooks/useUbicacion";
 import { colores, fuentes, radio } from "../../src/tema";
 import type { Comercio, Rubro } from "../../src/tipos";
@@ -25,6 +25,9 @@ const normalizar = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 type Orden = "distancia" | "nombre";
+
+const formatearFecha = (d: Date) =>
+  d.toLocaleString("es-AR", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
 
 export default function Buscar() {
   const { datos, cargando, error, recargar } = useDirectorio();
@@ -134,17 +137,19 @@ export default function Buscar() {
         )}
       </View>
 
+      {datos && (datos.desdeCopiaLocal || datosViejos(datos)) && (
+        <View style={estilos.avisoDatos}>
+          <Ionicons name="time-outline" size={15} color={colores.texto} />
+          <Text style={estilos.textoAvisoDatos}>
+            Datos guardados del {formatearFecha(datos.actualizadoEn)}. Puede haber cambios.
+          </Text>
+        </View>
+      )}
+
       {cargando && !datos ? (
-        <View style={estilos.centro}>
-          <ActivityIndicator size="large" color={colores.texto} />
-        </View>
+        <EstadoCarga texto="Cargando comercios..." />
       ) : error && !datos ? (
-        <View style={estilos.centro}>
-          <Text style={estilos.error}>{error}</Text>
-          <Pressable style={estilos.boton} onPress={recargar}>
-            <Text style={estilos.textoBoton}>Reintentar</Text>
-          </Pressable>
-        </View>
+        <EstadoError mensaje={error} onReintentar={recargar} />
       ) : (
         <FlatList
           data={resultados}
@@ -158,9 +163,23 @@ export default function Buscar() {
             </Text>
           }
           ListEmptyComponent={
-            <Text style={estilos.vacio}>
-              No encontramos comercios con esos filtros. Probá con otra palabra o quitá algún filtro.
-            </Text>
+            <EstadoVacio
+              icono="search-outline"
+              titulo="No encontramos comercios"
+              texto="Probá con otra palabra o quitá algún filtro."
+              accion={
+                texto || rubroId || soloAbiertos
+                  ? {
+                      texto: "Quitar filtros",
+                      onPress: () => {
+                        setTexto("");
+                        setRubroId(null);
+                        setSoloAbiertos(false);
+                      },
+                    }
+                  : undefined
+              }
+            />
           }
           renderItem={({ item }) => (
             <TarjetaComercio
@@ -175,33 +194,6 @@ export default function Buscar() {
         />
       )}
     </SafeAreaView>
-  );
-}
-
-function Chip({
-  texto,
-  activo,
-  onPress,
-  color,
-  icono,
-}: {
-  texto: string;
-  activo: boolean;
-  onPress: () => void;
-  color?: string;
-  icono?: IoniconsIconName;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[estilos.chip, activo && estilos.chipActivo]}
-      accessibilityRole="button"
-      accessibilityState={{ selected: activo }}
-    >
-      {color && <View style={[estilos.punto, { backgroundColor: color }]} />}
-      {icono && <Ionicons name={icono} size={14} color={activo ? "#fff" : colores.texto} />}
-      <Text style={[estilos.textoChip, activo && { color: "#fff" }]}>{texto}</Text>
-    </Pressable>
   );
 }
 
@@ -270,29 +262,21 @@ const estilos = StyleSheet.create({
   },
   input: { flex: 1, paddingVertical: 10, fontFamily: fuentes.cuerpo, fontSize: 15, color: colores.texto },
   chips: { gap: 8, paddingVertical: 2, alignItems: "center" },
-  chip: {
+  separador: { width: 1, height: 20, backgroundColor: colores.borde },
+  nota: { fontFamily: fuentes.cuerpo, fontSize: 12, color: colores.textoSuave },
+  lista: { padding: 16, gap: 10, flexGrow: 1 },
+  avisoDatos: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radio.pill,
-    backgroundColor: colores.superficie,
-    borderWidth: 1,
-    borderColor: colores.borde,
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 8,
+    borderRadius: radio.s,
+    backgroundColor: colores.durazno,
   },
-  chipActivo: { backgroundColor: colores.texto, borderColor: colores.texto },
-  textoChip: { fontFamily: fuentes.cuerpoFuerte, fontSize: 13, color: colores.texto },
-  punto: { width: 8, height: 8, borderRadius: 4 },
-  separador: { width: 1, height: 20, backgroundColor: colores.borde },
-  nota: { fontFamily: fuentes.cuerpo, fontSize: 12, color: colores.textoSuave },
-  centro: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24, gap: 12 },
-  error: { fontFamily: fuentes.cuerpo, color: colores.error, textAlign: "center" },
-  boton: { backgroundColor: colores.texto, paddingHorizontal: 20, paddingVertical: 10, borderRadius: radio.m },
-  textoBoton: { color: "#fff", fontFamily: fuentes.cuerpoFuerte },
-  lista: { padding: 16, gap: 10 },
+  textoAvisoDatos: { flex: 1, fontFamily: fuentes.cuerpo, fontSize: 12, color: colores.texto },
   contador: { fontFamily: fuentes.cuerpo, fontSize: 12, color: colores.textoSuave },
-  vacio: { fontFamily: fuentes.cuerpo, color: colores.textoSuave, textAlign: "center", marginTop: 32 },
   tarjeta: {
     flexDirection: "row",
     backgroundColor: colores.superficie,
