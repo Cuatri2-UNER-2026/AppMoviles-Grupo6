@@ -19,6 +19,7 @@ import { alternarFavorito, esFavorito } from "../../src/servicios/favoritos";
 import { uriParaMostrar } from "../../src/servicios/archivos";
 import { abrirComoLlegar } from "../../src/utils/comoLlegar";
 import { nombreMedioDePago } from "../../src/servicios/miComercio";
+import { ResenasComercio } from "../../src/componentes/ResenasComercio";
 import { useSesion } from "../../src/hooks/useSesion";
 import { ErrorApi } from "../../src/servicios/cliente";
 import type { Comercio, Horario } from "../../src/tipos";
@@ -78,6 +79,18 @@ export default function ComercioDetalleScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial desde la API
     cargar();
   }, [cargar]);
+
+  // Recarga sin pantalla de carga (por ejemplo, para actualizar el promedio tras una reseña).
+  const refrescarComercio = useCallback(async () => {
+    if (!id) return;
+    try {
+      const r = await obtenerComercioConRespaldo(id);
+      setComercio(r.comercio);
+      setDesdeCopiaLocal(r.desdeCopiaLocal);
+    } catch {
+      // Se mantiene lo que ya se estaba mostrando.
+    }
+  }, [id]);
 
   // Se recalcula en cada render: el estado de sesión trae los favoritos actualizados.
   const favorito = comercio != null && sesion.estado === "activa" && esFavorito(comercio.id);
@@ -239,6 +252,13 @@ export default function ComercioDetalleScreen() {
             <Text style={styles.textoBoton}>📍 Ir</Text>
           </TouchableOpacity>
         </View>
+
+        <ResenasComercio
+          comercioId={comercio.id}
+          puntaje={comercio.puntaje}
+          cantidad={comercio.cantidadResenas}
+          onCambio={refrescarComercio}
+        />
       </View>
     </ScrollView>
   );
@@ -276,7 +296,7 @@ const styles = StyleSheet.create({
   bannerVacaciones: { backgroundColor: "#ffcc00", padding: 10, alignItems: "center" },
   bannerCopia: { backgroundColor: "#E3E6EC", padding: 8, alignItems: "center" },
   textoVacaciones: { fontWeight: "bold", color: "#333" },
-  content: { padding: 16 },
+  content: { padding: 16, paddingBottom: 40 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
   titulo: { fontSize: 24, fontWeight: "bold", flex: 1 },
   favButton: { padding: 4 },
@@ -291,7 +311,7 @@ const styles = StyleSheet.create({
   video: { width: "100%", height: "100%" },
   sinVideoContainer: { padding: 16, backgroundColor: "#f9f9f9", borderRadius: 8, alignItems: "center", marginVertical: 8 },
   sinVideoText: { color: "#777", fontSize: 13, fontStyle: "italic" },
-  accionesContainer: { flexDirection: "row", justifyContent: "space-between", marginTop: 24, marginBottom: 20 },
+  accionesContainer: { flexDirection: "row", justifyContent: "space-between", marginTop: 24, marginBottom: 8 },
   botonAccion: { flex: 1, backgroundColor: "#007AFF", padding: 12, marginHorizontal: 4, borderRadius: 8, alignItems: "center" },
   textoBoton: { color: "#fff", fontWeight: "bold", fontSize: 14 },
 });

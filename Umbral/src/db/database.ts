@@ -1,7 +1,7 @@
 import * as SQLite from "expo-sqlite";
 
 // Base local de Umbral. Guarda el listado de comercios con sus horarios
-// para usar la app sin conexión.
+// para usar la app sin conexión, y las reseñas escritas sin red.
 //
 // Las migraciones usan PRAGMA user_version: cada versión nueva agrega su bloque
 // y las bases que ya existen en los teléfonos se actualizan solas.
@@ -45,6 +45,17 @@ const MIGRACIONES: string[] = [
   CREATE TABLE IF NOT EXISTS meta (
     clave TEXT PRIMARY KEY NOT NULL,
     valor TEXT NOT NULL
+  );
+  `,
+  // v2: reseñas escritas sin conexión, pendientes de subir (sincronizada: false).
+  `
+  CREATE TABLE IF NOT EXISTS resenas_pendientes (
+    id TEXT PRIMARY KEY NOT NULL,
+    comercio_id TEXT NOT NULL,
+    usuario_id TEXT NOT NULL,
+    estrellas INTEGER NOT NULL,
+    comentario TEXT NOT NULL,
+    creada_en TEXT NOT NULL
   );
   `,
 ];

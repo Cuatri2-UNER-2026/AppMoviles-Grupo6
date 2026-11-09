@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { AvisoSinConexion } from "../src/componentes/AvisoSinConexion";
 import { useAvisos } from "../src/hooks/useAvisos";
+import { useSincronizarResenas } from "../src/hooks/useSincronizarResenas";
 import { colores, fuentes } from "../src/tema";
 
 // La pantalla de presentación queda visible hasta que cargan las fuentes.
@@ -16,6 +17,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   useAvisos();
+  useSincronizarResenas();
 
   // Los nombres coinciden con src/tema (fuentes.titulo, fuentes.cuerpo, ...).
   const [fuentesListas, errorFuentes] = useFonts({
