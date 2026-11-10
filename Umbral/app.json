@@ -1,11 +1,12 @@
 {
   "expo": {
     "name": "Umbral",
-    "slug": "Umbral",
+    "slug": "umbral",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "umbral",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/images/icon.png",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -13,26 +14,44 @@
       }
     },
     "android": {
-      "permissions": [
-        "CAMERA"
-      ],
+      "package": "ar.edu.uner.umbral",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png",
+        "backgroundColor": "#F2F4F7"
+      },
+      "permissions": ["CAMERA"],
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static"
     },
-"plugins": [
-  "expo-router",
-  "expo-font",
-  "expo-image",
-  "expo-status-bar",
-  "expo-secure-store",
-  "expo-sqlite",
-  "expo-video",
-  "expo-notifications",
-  "expo-local-authentication"
-],
-
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-video",
+      "expo-notifications",
+      "expo-local-authentication",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F2F4F7"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Umbral usa tu ubicación para mostrarte los comercios más cercanos."
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
