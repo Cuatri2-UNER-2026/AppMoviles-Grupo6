@@ -77,6 +77,13 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "icon": "./assets/images/icon.png"
+    "icon": "./assets/images/icon.png",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "857c8e30-78bc-4f45-9b27-10c3ab556abe"
+      }
+    },
+    "owner": "mairene-villasmil"
   }
 }
