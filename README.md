@@ -151,12 +151,19 @@ La app consume la API provista por la cátedra, publicada en Render con base de 
 ## Generar el APK
 
 ```bash
-npm install -g eas-cli
-eas login
-eas build --platform android --profile preview
+cd Umbral
+npx eas-cli@latest login
+npx eas-cli@latest build --platform android --profile preview
 ```
 
-El build usa el perfil `preview` de `eas.json` y genera un APK instalable sin Metro ni computadora. La clave de Google Maps para Android está configurada en `app.json` (`android.config.googleMaps.apiKey`) y restringida al paquete y a la huella del certificado.
+El build usa el perfil `preview` de `eas.json` y genera un APK instalable sin Metro ni computadora.
+
+**Clave de Google Maps.** No está en el repositorio: `app.config.js` la lee de la variable `GOOGLE_MAPS_API_KEY`.
+
+- En la compu: crear `Umbral/.env.local` a partir de `Umbral/.env.local.example` y pegar la clave (ese archivo no se sube a git).
+- En EAS: cargarla como variable secreta del proyecto:
+  `npx eas-cli@latest env:create --name GOOGLE_MAPS_API_KEY --value <clave> --environment preview --environment production --visibility sensitive`
+- En Google Cloud la clave está restringida a **Maps SDK for Android**, al paquete `com.grupo6.umbral` y a la huella SHA-1 del certificado de EAS (`npx eas-cli@latest credentials`).
 
 **APK entregado:** [Link del build]
 
