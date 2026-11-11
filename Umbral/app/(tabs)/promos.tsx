@@ -1,330 +1,138 @@
-import React, { useEffect, useState } from "react";
+import { router } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
-} from "react-native";
-import { useRouter } from "expo-router";
-import {
-  promocionesService,
-  Promocion,
-} from "../../src/servicios/promociones";
+  EstadoCarga,
+  EstadoError,
+  EstadoVacio,
+  FiltroRubros,
+  FondoDegradado,
+  Segmentos,
+  TarjetaPromo,
+} from "../../src/componentes";
+import { useCarga } from "../../src/hooks/useCarga";
+import { useComercios } from "../../src/hooks/useComercios";
+import { promocionesService, type Promocion } from "../../src/servicios/promociones";
+import { colores, ESPACIO_BARRA, fuentes } from "../../src/tema";
 
 type EstadoPromo = "vigentes" | "por-vencer" | "proximas";
 
+const TABS: { clave: EstadoPromo; etiqueta: string }[] = [
+  { clave: "vigentes", etiqueta: "Vigentes" },
+  { clave: "por-vencer", etiqueta: "Por vencer" },
+  { clave: "proximas", etiqueta: "Próximas" },
+];
+
+const MENSAJE_VACIO: Record<EstadoPromo, string> = {
+  vigentes: "Por ahora no hay promos vigentes.",
+  "por-vencer": "Ninguna promo vence en los próximos días.",
+  proximas: "Todavía no hay promos por empezar.",
+};
+
 export default function PromosScreen() {
-  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { comercios, rubros } = useComercios();
 
-  const [tabActiva, setTabActiva] = useState<EstadoPromo>("vigentes");
-  const [promos, setPromos] = useState<Promocion[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [refrescando, setRefrescando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<EstadoPromo>("vigentes");
+  const [rubroId, setRubroId] = useState<string | null>(null);
 
-  const cargarPromociones = async (estado: EstadoPromo = tabActiva) => {
-    try {
-      setError(null);
+  const { datos, cargando, refrescando, error, reintentar, refrescar } = useCarga(
+    () => promocionesService.obtenerPromociones(tab),
+    [tab],
+  );
 
-      const data = await promocionesService.obtenerPromociones(estado);
+  const comercioPorId = useMemo(() => new Map(comercios.map((c) => [c.id, c])), [comercios]);
 
-      console.log("Promociones recibidas:", data);
+  // Las vencidas nunca se muestran (requisito); además filtramos por rubro.
+  const visibles = useMemo(() => {
+    const ahora = Date.now();
+    return (datos ?? []).filter((p: Promocion) => {
+      if (Date.parse(p.hasta) < ahora) return false;
+      return rubroId ? comercioPorId.get(p.comercioId)?.rubroId === rubroId : true;
+    });
+  }, [datos, rubroId, comercioPorId]);
 
-      setPromos(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      console.log("Error al cargar promociones:", err);
+  const ahora = Date.now();
+  const [destacada, ...resto] = visibles;
 
-      setError(err.message || "Error al obtener las promociones");
-      setPromos([]);
-    } finally {
-      setCargando(false);
-      setRefrescando(false);
-    }
-  };
+  const abrir = useCallback(
+    (id: string) => router.push({ pathname: "/promo/[id]", params: { id } }),
+    [],
+  );
 
-  useEffect(() => {
-    setCargando(true);
-    cargarPromociones(tabActiva);
-  }, [tabActiva]);
-
-  const cambiarTab = (estado: EstadoPromo) => {
-    if (estado !== tabActiva) {
-      setCargando(true);
-      setTabActiva(estado);
-    }
-  };
-
-  const onRefresh = () => {
-    setRefrescando(true);
-    cargarPromociones();
-  };
-
-  const formatearFecha = (fecha: string) => {
-    const fechaValida = new Date(fecha);
-
-    if (Number.isNaN(fechaValida.getTime())) {
-      return "Fecha no disponible";
-    }
-
-    return fechaValida.toLocaleDateString("es-AR");
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.titulo}>Promos</Text>
-
-      <Text style={styles.subtitulo}>
-        Descubrí promociones vigentes y próximas.
-      </Text>
-
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            tabActiva === "vigentes" && styles.tabActivo,
-          ]}
-          onPress={() => cambiarTab("vigentes")}
-        >
-          <Text
-            style={
-              tabActiva === "vigentes"
-                ? styles.tabTextActivo
-                : styles.tabText
-            }
-          >
-            Vigentes
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            tabActiva === "por-vencer" && styles.tabActivo,
-          ]}
-          onPress={() => cambiarTab("por-vencer")}
-        >
-          <Text
-            style={
-              tabActiva === "por-vencer"
-                ? styles.tabTextActivo
-                : styles.tabText
-            }
-          >
-            Por vencer
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            tabActiva === "proximas" && styles.tabActivo,
-          ]}
-          onPress={() => cambiarTab("proximas")}
-        >
-          <Text
-            style={
-              tabActiva === "proximas"
-                ? styles.tabTextActivo
-                : styles.tabText
-            }
-          >
-            Próximas
-          </Text>
-        </TouchableOpacity>
+  const encabezado = (
+    <View style={estilos.encabezado}>
+      <View>
+        <Text style={estilos.titulo}>Promos</Text>
+        <Text style={estilos.subtitulo}>Solo las que están vigentes, nada vencido.</Text>
       </View>
 
+      <Segmentos opciones={TABS} valor={tab} onChange={setTab} />
+
+      {rubros.length > 0 && <FiltroRubros rubros={rubros} rubroId={rubroId} onChange={setRubroId} />}
+
       {cargando ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#1A1D20" />
-          <Text style={styles.cargandoTexto}>
-            Cargando promociones...
-          </Text>
-        </View>
+        <EstadoCarga texto="Cargando promociones…" style={estilos.estado} />
       ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.errorTexto}>{error}</Text>
-
-          <TouchableOpacity
-            style={styles.botonReintentar}
-            onPress={() => {
-              setCargando(true);
-              cargarPromociones();
-            }}
-          >
-            <Text style={styles.botonReintentarTexto}>
-              Reintentar
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <EstadoError titulo="No pudimos cargar las promos" texto={error} onReintentar={reintentar} style={estilos.estado} />
+      ) : visibles.length === 0 ? (
+        <EstadoVacio
+          icono="pricetag-outline"
+          titulo="No hay promociones acá"
+          texto={rubroId ? "Probá con otro rubro." : MENSAJE_VACIO[tab]}
+          style={estilos.estado}
+        />
       ) : (
-        <ScrollView
-          contentContainerStyle={styles.lista}
-          refreshControl={
-            <RefreshControl
-              refreshing={refrescando}
-              onRefresh={onRefresh}
-            />
-          }
-        >
-          {promos.length === 0 ? (
-            <Text style={styles.vacioTexto}>
-              No hay promociones disponibles en esta categoría.
-            </Text>
-          ) : (
-            promos.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.card}
-                onPress={() =>
-                  router.push(`/promo/${item.id}` as any)
-                }
-              >
-                {item.soloApp && (
-                  <Text style={styles.badge}>
-                    SOLO APP
-                  </Text>
-                )}
-
-                <Text style={styles.cardPorcentaje}>
-                  {item.descuento !== null
-                    ? `${item.descuento}%`
-                    : "PROMO"}
-                </Text>
-
-                <Text style={styles.cardTitulo}>
-                  {item.titulo}
-                </Text>
-
-                <Text style={styles.cardComercio}>
-                  {item.detalle}
-                </Text>
-
-                <Text style={styles.cardFechas}>
-                  Desde: {formatearFecha(item.desde)}
-                </Text>
-
-                <Text style={styles.cardFechas}>
-                  Hasta: {formatearFecha(item.hasta)}
-                </Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </ScrollView>
+        destacada && (
+          <TarjetaPromo
+            promo={destacada}
+            variante="destacada"
+            nombreComercio={comercioPorId.get(destacada.comercioId)?.nombre}
+            ahora={ahora}
+            onPress={abrir}
+          />
+        )
       )}
     </View>
   );
+
+  return (
+    <FondoDegradado
+      colores={["#DCEBE2", colores.niebla, colores.niebla, "#F6DCCD"]}
+      locations={[0, 0.3, 0.65, 1]}
+    >
+      <FlatList
+        data={cargando || error ? [] : resto}
+        keyExtractor={(p) => p.id}
+        numColumns={2}
+        columnWrapperStyle={{ gap: 12 }}
+        ListHeaderComponent={encabezado}
+        renderItem={({ item, index }) => (
+          <TarjetaPromo
+            promo={item}
+            variante="chica"
+            indice={index}
+            nombreComercio={comercioPorId.get(item.comercioId)?.nombre}
+            ahora={ahora}
+            onPress={abrir}
+          />
+        )}
+        contentContainerStyle={[
+          estilos.contenido,
+          { paddingTop: insets.top + 20, paddingBottom: ESPACIO_BARRA + insets.bottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={colores.indigo} />}
+      />
+    </FondoDegradado>
+  );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FA",
-    paddingHorizontal: 16,
-    paddingTop: 50,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  cargandoTexto: {
-    marginTop: 10,
-    color: "#6C757D",
-  },
-  errorTexto: {
-    color: "#D9534F",
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  vacioTexto: {
-    textAlign: "center",
-    color: "#6C757D",
-    marginTop: 40,
-    fontSize: 16,
-  },
-  titulo: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#1A1D20",
-  },
-  subtitulo: {
-    fontSize: 14,
-    color: "#6C757D",
-    marginBottom: 16,
-  },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#E9ECEF",
-    borderRadius: 20,
-    padding: 4,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 16,
-  },
-  tabActivo: {
-    backgroundColor: "#FFFFFF",
-  },
-  tabText: {
-    color: "#6C757D",
-    fontWeight: "500",
-  },
-  tabTextActivo: {
-    color: "#1A1D20",
-    fontWeight: "bold",
-  },
-  lista: {
-    paddingBottom: 24,
-    gap: 12,
-  },
-  card: {
-    backgroundColor: "#FFEAD2",
-    padding: 20,
-    borderRadius: 20,
-  },
-  badge: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: "#6C757D",
-    marginBottom: 4,
-  },
-  cardPorcentaje: {
-    fontSize: 36,
-    fontWeight: "bold",
-    color: "#1A1D20",
-  },
-  cardTitulo: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1A1D20",
-    marginTop: 4,
-  },
-  cardComercio: {
-    fontSize: 14,
-    color: "#6C757D",
-    marginTop: 6,
-  },
-  cardFechas: {
-    fontSize: 12,
-    color: "#6C757D",
-    marginTop: 6,
-  },
-  botonReintentar: {
-    backgroundColor: "#1A1D20",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  botonReintentarTexto: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-  },
+const estilos = StyleSheet.create({
+  contenido: { paddingHorizontal: 20, gap: 12 },
+  encabezado: { gap: 16, marginBottom: 4 },
+  titulo: { fontFamily: fuentes.titulo, fontSize: 40, lineHeight: 46, color: colores.pizarra, letterSpacing: -1 },
+  subtitulo: { fontFamily: fuentes.texto, fontSize: 14, color: colores.gris, marginTop: 2 },
+  estado: { flex: 0, paddingVertical: 48 },
 });

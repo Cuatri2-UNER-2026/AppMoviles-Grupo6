@@ -12,7 +12,7 @@ export interface EstadoApertura {
 }
 
 interface Tramo {
-  inicio: number; // minutos desde el domingo 00:00
+  inicio: number; 
   fin: number;
 }
 

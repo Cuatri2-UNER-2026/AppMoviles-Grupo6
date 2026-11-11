@@ -1,133 +1,534 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Dimensions } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import * as Haptics from 'expo-haptics';
+import Ionicons from "@react-native-vector-icons/ionicons";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { router, useLocalSearchParams } from "expo-router";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useEffect, useState } from "react";
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
+import { AccionesComercio, Aviso, Boton, BotonRedondo, EstadoCarga, EstadoError, Estrellas, IndicadorApertura, Insignia, Puntaje, SeccionTitulo } from "../../src/componentes";
+import { useCarga } from "../../src/hooks/useCarga";
+import { useSesion } from "../../src/hooks/useSesion";
+import { pedir } from "../../src/servicios/cliente";
+import { listarRubros, obtenerComercio } from "../../src/servicios/comercios";
+import { alternarFavorito } from "../../src/servicios/favoritos";
+import { resenasService } from "../../src/servicios/resenas";
+import { colores, fuentes } from "../../src/tema";
+import type { Comercio, Promocion, Resena, Rubro } from "../../src/tipos";
+import { calcularEstado } from "../../src/utils/abiertoAhora";
+import { abrirInstagram } from "../../src/utils/enlaces";
+import { fechaCorta } from "../../src/utils/fechas";
+import { formatearDuracion } from "../../src/utils/formatear";
 
-const { width } = Dimensions.get('window');
+const ALTO_HERO = 300;
+const SEMANA = [1, 2, 3, 4, 5, 6, 0] as const; // lunes primero
+const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const MEDIOS: Record<string, string> = {
+    efectivo: "Efectivo",
+    debito: "Débito",
+    credito: "Crédito",
+    transferencia: "Transferencia",
+    billetera_virtual: "Billetera virtual",
+};
 
-export default function ComercioDetalleScreen() {
-  const { id } = useLocalSearchParams();
-  const [isFavorite, setIsFavorite] = useState(false);
+const aMin = (hhmm: string) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+};
 
-  // Comercio de ejemplo (puedes adaptarlo con datos reales o SQLite)
-  const comercio = {
-    nombre: "Comercio de Ejemplo",
-    descripcion: "Un lugar excelente para disfrutar, comprar y conocer.",
-    horarios: "Lunes a Sábados de 09:00 a 20:00 hs",
-    telefono: "+5493431234567",
-    whatsapp: "+5493431234567",
-    redes: "@comercioejemplo",
-    mediosPago: ["Efectivo", "Tarjeta de Débito", "Mercado Pago"],
-    fotos: [], // Caso sin fotos probado
-    cerradoPorVacaciones: false,
-    // URL de video de prueba (o null para probar el caso "sin video")
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", 
-  };
+const tramosDelDia = (c: Comercio, dia: number) =>
+  c.horarios.filter((h) => h.dia === dia).sort((a, b) => a.abre.localeCompare(b.abre));
 
-  // Configuración del reproductor expo-video
-  const player = useVideoPlayer(comercio.videoUrl, (playerInstance) => {
-    playerInstance.loop = false;
-  });
+const asegurarHttps = (url: string) =>
+  url.replace(/^http:\/\/(?!localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/, "https://");
 
-  // Manejador del botón de favorito con respuesta háptica
-  const handleToggleFavorite = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsFavorite(!isFavorite);
-  };
+type ResenaConAutor = Resena & { usuarioNombre?: string };
+
+export default function FichaComercio() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const sesion = useSesion();
+
+  // Comercio + rubro: cargando / error / reintentar salen de useCarga.
+  const { datos, cargando, error, reintentar } = useCarga(async () => {
+    const [c, rubros] = await Promise.all([
+      obtenerComercio(id),
+      listarRubros().catch(() => [] as Rubro[]),
+    ]);
+    return { comercio: c, rubro: rubros.find((r) => r.id === c.rubroId) ?? null };
+  }, [id]);
+  const comercio = datos?.comercio ?? null;
+  const rubro = datos?.rubro ?? null;
+
+  const [promos, setPromos] = useState<Promocion[]>([]);
+  const [resenas, setResenas] = useState<Resena[] | null>(null);
+  const [errorResenas, setErrorResenas] = useState(false);
+  const [verSemana, setVerSemana] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [reproduciendo, setReproduciendo] = useState(false);
+
+  // Promos y reseñas cargan aparte: si fallan, la ficha se ve igual.
+  useEffect(() => {
+    let activo = true;
+    pedir<Promocion[]>("/promociones", { params: { comercioId: id, porPagina: 20 } })
+      .then((r) => activo && setPromos(r.datos))
+      .catch(() => activo && setPromos([]));
+    resenasService
+      .obtenerDeComercio(id, 1, 20)
+      .then((lista) => {
+        if (!activo) return;
+        setResenas([...lista].sort((a, b) => Date.parse(b.creadaEn) - Date.parse(a.creadaEn)));
+      })
+      .catch(() => activo && setErrorResenas(true));
+    return () => {
+      activo = false;
+    };
+  }, [id]);
+
+  const esFavorito = sesion.estado === "activa" && sesion.usuario.favoritos.includes(id);
+
+  async function alternar() {
+    if (sesion.estado === "sin-sesion") {
+      router.push("/login");
+      return;
+    }
+    if (sesion.estado !== "activa") {
+      router.push("/yo");
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setGuardando(true);
+    try {
+      await alternarFavorito(id);
+    } catch (e) {
+      Alert.alert("No pudimos guardar", e instanceof Error ? e.message : "Probá de nuevo.");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  const barra = (
+    <View style={[estilos.barra, { top: insets.top + 8 }]} pointerEvents="box-none">
+      <BotonRedondo />
+      {comercio && (
+        <Boton
+          texto={esFavorito ? "Guardado" : "Guardar"}
+          icono={esFavorito ? "heart" : "heart-outline"}
+          variante={esFavorito ? "primario" : "claro"}
+          compacto
+          cargando={guardando}
+          onPress={alternar}
+          style={estilos.guardar}
+        />
+      )}
+    </View>
+  );
+
+  if (cargando || error || !comercio) {
+    return (
+      <View style={estilos.pantalla}>
+        <LinearGradient
+          colors={[colores.celeste, colores.lila, colores.durazno]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[estilos.hero, { height: ALTO_HERO - 90 + insets.top }]}
+        />
+        {barra}
+        {cargando ? (
+          <EstadoCarga texto="Cargando comercio…" />
+        ) : (
+          <EstadoError titulo="No pudimos cargar este comercio" texto={error} onReintentar={reintentar} />
+        )}
+      </View>
+    );
+  }
+
+  const estado = calcularEstado(comercio.horarios);
+  const hoy = new Date().getDay();
+  const tramosHoy = tramosDelDia(comercio, hoy);
+  const ahoraMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const esActivo = (abre: string, cierra: string) =>
+    aMin(cierra) > aMin(abre)
+      ? aMin(abre) <= ahoraMin && ahoraMin < aMin(cierra)
+      : ahoraMin >= aMin(abre);
+  const altoHero = ALTO_HERO + insets.top;
+  const fotos = comercio.imagenes.map(asegurarHttps);
+  const tieneVideo = !!comercio.videoUrl;
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Cabecera / Fotos */}
-      {comercio.fotos.length > 0 ? (
-        <ScrollView horizontal pagingEnabled style={styles.slider}>
-          {comercio.fotos.map((foto, index) => (
-            <Image key={index} source={{ uri: foto }} style={styles.foto} />
-          ))}
-        </ScrollView>
-      ) : (
-        <View style={styles.sinFotosContainer}>
-          <Text style={styles.sinFotosText}>📸 Sin fotos disponibles</Text>
-        </View>
-      )}
-
-      {/* Aviso de Cerrado por Vacaciones */}
-      {comercio.cerradoPorVacaciones && (
-        <View style={styles.bannerVacaciones}>
-          <Text style={styles.textoVacaciones}>⚠️ Cerrado por vacaciones</Text>
-        </View>
-      )}
-
-      <View style={styles.content}>
-        <View style={styles.headerRow}>
-          <Text style={styles.titulo}>{comercio.nombre}</Text>
-          <TouchableOpacity onPress={handleToggleFavorite} style={styles.favButton}>
-            <Text style={{ fontSize: 24 }}>{isFavorite ? "❤️" : "🤍"}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.descripcion}>{comercio.descripcion}</Text>
-        
-        <Text style={styles.seccionTitulo}>Horarios</Text>
-        <Text style={styles.textoComun}>{comercio.horarios}</Text>
-
-        <Text style={styles.seccionTitulo}>Medios de Pago</Text>
-        <Text style={styles.textoComun}>{comercio.mediosPago.join(", ")}</Text>
-
-        {/* Sección de Video con expo-video (Requerimiento Parte 3) */}
-        <Text style={styles.seccionTitulo}>Video institucional</Text>
-        {comercio.videoUrl ? (
-          <View style={styles.videoContainer}>
-            <VideoView
-              player={player}
-              style={styles.video}
-              allowsFullscreen
-              allowsPictureInPicture
+    <View style={estilos.pantalla}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}>
+        {/* ───── Portada ───── */}
+        <View style={{ height: altoHero }}>
+          {tieneVideo ? (
+            <VideoPortada
+              url={asegurarHttps(comercio.videoUrl!)}
+              alto={altoHero}
+              reproduciendo={reproduciendo}
+              alIniciar={() => setReproduciendo(true)}
             />
-          </View>
-        ) : (
-          <View style={styles.sinVideoContainer}>
-            <Text style={styles.sinVideoText}>🎥 Este comercio no cuenta con video institucional.</Text>
-          </View>
-        )}
-
-        {/* Botones de Acción: Llamar, WhatsApp, Ir */}
-        <View style={styles.accionesContainer}>
-          <TouchableOpacity style={styles.botonAccion} onPress={() => Alert.alert("Llamando...")}>
-            <Text style={styles.textoBoton}>📞 Llamar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.botonAccion} onPress={() => Alert.alert("Abriendo WhatsApp...")}>
-            <Text style={styles.textoBoton}>💬 WhatsApp</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.botonAccion} onPress={() => Alert.alert("Abriendo Mapas...")}>
-            <Text style={styles.textoBoton}>📍 Ir</Text>
-          </TouchableOpacity>
+          ) : fotos.length > 0 ? (
+            <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+              {fotos.map((uri) => (
+                <Image key={uri} source={{ uri }} style={{ width, height: altoHero }} />
+              ))}
+            </ScrollView>
+          ) : (
+            <LinearGradient
+              colors={[colores.celeste, colores.lila, colores.durazno]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[estilos.hero, estilos.sinMedios, { height: altoHero }]}
+            >
+              <Ionicons name="storefront-outline" size={44} color={colores.pizarra} />
+              <Text style={estilos.textoSinMedios}>Todavía no cargó fotos ni video</Text>
+            </LinearGradient>
+          )}
+          {!reproduciendo && <Onda />}
+          {barra}
         </View>
-      </View>
-    </ScrollView>
+
+        <View style={estilos.contenido}>
+          {/* ───── Identidad ───── */}
+          <View style={{ gap: 6 }}>
+            <Text style={estilos.nombre}>{comercio.nombre}</Text>
+            <Text style={estilos.subtitulo}>
+              {[rubro?.nombre, comercio.direccion].filter(Boolean).join(" · ")}
+            </Text>
+            <View style={estilos.filaEstado}>
+              <IndicadorApertura estado={estado} variante="chip" />
+              <Puntaje
+                puntaje={comercio.puntaje}
+                cantidad={comercio.cantidadResenas}
+                conCantidad
+                style={estilos.puntaje}
+              />
+            </View>
+          </View>
+
+          {!comercio.activo && (
+            <Aviso texto="Este comercio ya no forma parte del Centro Comercial." />
+          )}
+          {comercio.activo && comercio.horarios.length === 0 && (
+            <Aviso icono="sunny-outline" texto="Cerrado temporalmente. Todavía no hay horarios cargados." />
+          )}
+
+          {/* ───── Acciones ───── */}
+          <AccionesComercio comercio={comercio} />
+
+          {/* ───── Horarios ───── */}
+          {comercio.horarios.length > 0 && (
+            <View style={estilos.tarjeta}>
+              <View style={estilos.filaHorario}>
+                <Text style={estilos.dia}>Hoy</Text>
+                <View style={estilos.tramos}>
+                  {tramosHoy.length === 0 ? (
+                    <View style={estilos.tramo}>
+                      <Text style={estilos.textoTramo}>Cerrado hoy</Text>
+                    </View>
+                  ) : (
+                    tramosHoy.map((t) => {
+                      const activo = esActivo(t.abre, t.cierra);
+                      return (
+                        <View key={t.abre} style={[estilos.tramo, activo && estilos.tramoActivo]}>
+                          <Text style={[estilos.textoTramo, activo && { color: colores.blanco }]}>
+                            {t.abre}–{t.cierra}
+                          </Text>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+              </View>
+
+              {verSemana &&
+                SEMANA.map((d) => {
+                  const lista = tramosDelDia(comercio, d);
+                  return (
+                    <View key={d} style={estilos.filaSemana}>
+                      <Text style={[estilos.diaSemana, d === hoy && estilos.diaSemanaHoy]}>{DIAS[d]}</Text>
+                      <Text style={[estilos.textoSemana, d === hoy && estilos.diaSemanaHoy]}>
+                        {lista.length ? lista.map((t) => `${t.abre}–${t.cierra}`).join("   ") : "Cerrado"}
+                      </Text>
+                    </View>
+                  );
+                })}
+
+              <Pressable onPress={() => setVerSemana((v) => !v)} hitSlop={8}>
+                <Text style={estilos.enlace}>{verSemana ? "Ocultar semana" : "Ver toda la semana"}</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* ───── Promociones ───── */}
+          {promos.map((p) => (
+            <LinearGradient
+              key={p.id}
+              colors={[colores.salvia, colores.durazno, colores.lila]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={estilos.promo}
+            >
+              {p.soloApp && <Insignia />}
+              <Text style={estilos.tituloPromo}>{p.titulo}</Text>
+              <Text style={estilos.detallePromo} numberOfLines={1}>
+                Hasta el {fechaCorta(p.hasta)} · {p.detalle.split(".")[0]}
+              </Text>
+              <Boton
+                texto={p.soloApp ? "Mostrar mi código" : "Ver promoción"}
+                onPress={() => router.push({ pathname: "/promo/[id]", params: { id: p.id } })}
+                style={estilos.botonPromo}
+              />
+            </LinearGradient>
+          ))}
+
+          {/* ───── Reseñas ───── */}
+          {resenas === null && !errorResenas && <EstadoCarga texto="Cargando reseñas…" style={estilos.cargaInline} />}
+          {errorResenas && <Text style={estilos.textoEstado}>No pudimos cargar las reseñas ahora.</Text>}
+          {resenas?.length === 0 && (
+            <View style={estilos.tarjeta}>
+              <Text style={estilos.parrafo}>Todavía no hay reseñas de este comercio.</Text>
+            </View>
+          )}
+          {resenas?.slice(0, 5).map((r) => (
+            <View key={r.id} style={estilos.tarjeta}>
+              <View style={{ gap: 4 }}>
+                <Text style={estilos.autor}>
+                  {(r as ResenaConAutor).usuarioNombre ?? "Vecino"} <Estrellas cantidad={r.estrellas} />
+                </Text>
+                <Text style={estilos.parrafo}>{r.comentario}</Text>
+              </View>
+              {r.respuesta && (
+                <View style={estilos.respuesta}>
+                  <Text style={estilos.tituloRespuesta}>Respuesta del comercio</Text>
+                  <Text style={estilos.parrafo}>{r.respuesta}</Text>
+                </View>
+              )}
+            </View>
+          ))}
+
+          {/* ───── Sobre el local ───── */}
+          <View style={estilos.tarjeta}>
+            <SeccionTitulo texto="Sobre el local" />
+            <Text style={estilos.parrafo}>{comercio.descripcion}</Text>
+            {comercio.mediosDePago.length > 0 && (
+              <View style={estilos.chips}>
+                {comercio.mediosDePago.map((m) => (
+                  <View key={m} style={estilos.chip}>
+                    <Text style={estilos.textoChip}>{MEDIOS[m] ?? m}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            {comercio.instagram && (
+              <Pressable style={estilos.filaInstagram} onPress={() => abrirInstagram(comercio.instagram!)}>
+                <Ionicons name="logo-instagram" size={18} color={colores.pizarra} />
+                <Text style={estilos.textoInstagram}>{comercio.instagram}</Text>
+              </Pressable>
+            )}
+            {tieneVideo && fotos.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                {fotos.map((uri) => (
+                  <Image key={uri} source={{ uri }} style={estilos.miniatura} />
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  slider: { height: 220 },
-  foto: { width: width, height: 220, resizeMode: 'cover' },
-  sinFotosContainer: { height: 180, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' },
-  sinFotosText: { color: '#666', fontSize: 16 },
-  bannerVacaciones: { backgroundColor: '#ffcc00', padding: 10, alignItems: 'center' },
-  textoVacaciones: { fontWeight: 'bold', color: '#333' },
-  content: { padding: 16 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  titulo: { fontSize: 24, fontWeight: 'bold', flex: 1 },
-  favButton: { padding: 4 },
-  descripcion: { fontSize: 14, color: '#555', marginBottom: 16 },
-  seccionTitulo: { fontSize: 16, fontWeight: 'bold', marginTop: 16, marginBottom: 6, color: '#333' },
-  textoComun: { fontSize: 14, color: '#666', marginBottom: 8 },
-  videoContainer: { width: '100%', height: 200, backgroundColor: '#000', borderRadius: 8, overflow: 'hidden', marginVertical: 8 },
-  video: { width: '100%', height: '100%' },
-  sinVideoContainer: { padding: 16, backgroundColor: '#f9f9f9', borderRadius: 8, alignItems: 'center', marginVertical: 8 },
-  sinVideoText: { color: '#777', fontSize: 13, fontStyle: 'italic' },
-  accionesContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 24, marginBottom: 20 },
-  botonAccion: { flex: 1, backgroundColor: '#007AFF', padding: 12, marginHorizontal: 4, borderRadius: 8, alignItems: 'center' },
-  textoBoton: { color: '#fff', fontWeight: 'bold', fontSize: 14 }
+/* ───────── piezas ───────── */
+
+function Onda() {
+  return (
+    <Svg
+      width="100%"
+      height={44}
+      viewBox="0 0 400 44"
+      preserveAspectRatio="none"
+      style={estilos.onda}
+      pointerEvents="none"
+    >
+      <Path d="M0 30 C 70 6, 130 6, 200 24 S 330 46, 400 14 L400 44 L0 44 Z" fill={colores.niebla} />
+    </Svg>
+  );
+}
+
+function VideoPortada({
+  url,
+  alto,
+  reproduciendo,
+  alIniciar,
+}: {
+  url: string;
+  alto: number;
+  reproduciendo: boolean;
+  alIniciar: () => void;
+}) {
+  const player = useVideoPlayer(url, (p) => {
+    p.loop = false;
+  });
+  const [segundos, setSegundos] = useState(0);
+  const [fallo, setFallo] = useState(false);
+
+  useEffect(() => {
+    const cargado = player.addListener("sourceLoad", (e) => setSegundos(e.duration));
+    const estado = player.addListener("statusChange", (e) => {
+      if (e.status === "error") setFallo(true);
+    });
+    return () => {
+      cargado.remove();
+      estado.remove();
+    };
+  }, [player]);
+
+  if (fallo) {
+    return (
+      <LinearGradient
+        colors={[colores.celeste, colores.lila, colores.durazno]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[estilos.hero, estilos.sinMedios, { height: alto }]}
+      >
+        <Ionicons name="videocam-off-outline" size={44} color={colores.pizarra} />
+        <Text style={estilos.textoSinMedios}>No pudimos reproducir el video</Text>
+      </LinearGradient>
+    );
+  }
+
+  if (reproduciendo) {
+    return (
+      <View style={[estilos.hero, { height: alto, backgroundColor: colores.negro }]}>
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          nativeControls
+          contentFit="contain"
+          fullscreenOptions={{ enable: true }}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <LinearGradient
+      colors={[colores.celeste, colores.lila, colores.durazno]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[estilos.hero, { height: alto, alignItems: "center", justifyContent: "center" }]}
+    >
+      <Pressable
+        style={estilos.play}
+        onPress={() => {
+          player.play();
+          alIniciar();
+        }}
+        accessibilityLabel="Reproducir video"
+      >
+        <Ionicons name="play" size={40} color={colores.pizarra} style={{ marginLeft: 4 }} />
+      </Pressable>
+      <View style={estilos.pildoraVideo}>
+        <Text style={estilos.textoPildora}>
+          Video{segundos > 0 ? ` · ${formatearDuracion(segundos)}` : ""}
+        </Text>
+      </View>
+    </LinearGradient>
+  );
+}
+
+const estilos = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: colores.niebla },
+  hero: { width: "100%" },
+  contenido: { backgroundColor: colores.niebla, paddingHorizontal: 20, paddingTop: 4, gap: 16 },
+
+  // portada
+  barra: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+  },
+  guardar: { height: 46, paddingHorizontal: 18 },
+  play: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderWidth: 1,
+    borderColor: colores.bordeVidrio,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pildoraVideo: {
+    position: "absolute",
+    left: 20,
+    bottom: 58,
+    backgroundColor: colores.vidrioFuerte,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  textoPildora: { fontFamily: fuentes.textoNegrita, fontSize: 13, color: colores.pizarra },
+  onda: { position: "absolute", left: 0, right: 0, bottom: -1 },
+  sinMedios: { alignItems: "center", justifyContent: "center", gap: 8, paddingBottom: 30 },
+  textoSinMedios: { fontFamily: fuentes.textoMedio, fontSize: 14, color: colores.pizarra },
+
+  // identidad
+  nombre: { fontFamily: fuentes.titulo, fontSize: 30, lineHeight: 36, color: colores.pizarra, letterSpacing: -0.5 },
+  subtitulo: { fontFamily: fuentes.textoMedio, fontSize: 14, color: colores.gris },
+  filaEstado: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 4 },
+  puntaje: { fontFamily: fuentes.textoMedio, fontSize: 13 },
+
+  // tarjetas
+  tarjeta: { backgroundColor: colores.blanco, borderRadius: 28, padding: 16, gap: 12 },
+  parrafo: { fontFamily: fuentes.texto, fontSize: 14, lineHeight: 21, color: colores.gris },
+  enlace: { fontFamily: fuentes.textoNegrita, fontSize: 13, color: colores.indigo },
+
+  // horarios
+  filaHorario: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  dia: { fontFamily: fuentes.textoNegrita, fontSize: 15, color: colores.pizarra },
+  tramos: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 8, flexShrink: 1 },
+  tramo: { backgroundColor: colores.grisChip, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  tramoActivo: { backgroundColor: colores.pizarra },
+  textoTramo: { fontFamily: fuentes.textoNegrita, fontSize: 13, color: colores.pizarra },
+  filaSemana: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  diaSemana: { fontFamily: fuentes.textoMedio, fontSize: 14, color: colores.gris },
+  textoSemana: { fontFamily: fuentes.texto, fontSize: 14, color: colores.gris, flexShrink: 1, textAlign: "right" },
+  diaSemanaHoy: { fontFamily: fuentes.textoNegrita, color: colores.pizarra },
+
+  // promo
+  promo: {
+    padding: 22,
+    gap: 6,
+    borderTopLeftRadius: 56,
+    borderTopRightRadius: 28,
+    borderBottomRightRadius: 56,
+    borderBottomLeftRadius: 28,
+  },
+  tituloPromo: { fontFamily: fuentes.titulo, fontSize: 30, lineHeight: 36, color: colores.pizarra, letterSpacing: -0.5 },
+  detallePromo: { fontFamily: fuentes.textoMedio, fontSize: 14, color: colores.gris },
+  botonPromo: { alignSelf: "flex-start", marginTop: 12 },
+
+  // reseñas
+  autor: { fontFamily: fuentes.textoNegrita, fontSize: 15, color: colores.pizarra },
+  respuesta: { backgroundColor: colores.niebla, borderRadius: 18, padding: 12, gap: 4 },
+  tituloRespuesta: { fontFamily: fuentes.textoNegrita, fontSize: 12, color: colores.indigo },
+
+  // sobre el local
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { backgroundColor: colores.lila, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  textoChip: { fontFamily: fuentes.textoMedio, fontSize: 12, color: colores.pizarra },
+  filaInstagram: { flexDirection: "row", alignItems: "center", gap: 8 },
+  textoInstagram: { fontFamily: fuentes.textoMedio, fontSize: 14, color: colores.pizarra },
+  miniatura: { width: 120, height: 90, borderRadius: 18, backgroundColor: colores.niebla },
+  cargaInline: { flex: 0, paddingVertical: 16 },
+  textoEstado: { fontFamily: fuentes.texto, fontSize: 13, color: colores.gris, textAlign: "center" },
 });

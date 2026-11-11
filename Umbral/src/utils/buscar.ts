@@ -7,7 +7,6 @@ export type Orden = "distancia" | "puntaje" | "nombre";
 export interface ComercioListado {
   comercio: Comercio;
   rubro: Rubro | undefined;
-  /** Metros hasta la persona; null si no hay ubicación. */
   distancia: number | null;
   estado: EstadoApertura;
 }
@@ -23,7 +22,6 @@ export interface OpcionesBusqueda {
   ahora: Date;
 }
 
-/** Minúsculas y sin tildes: "Ferretería" coincide con "ferreteria". */
 export function normalizar(texto: string): string {
   return texto
     .normalize("NFD")
@@ -32,10 +30,6 @@ export function normalizar(texto: string): string {
     .trim();
 }
 
-/**
- * Búsqueda por nombre o por lo que venden (descripción y nombre del rubro),
- * filtro por rubro, filtro "abierto ahora" y orden.
- */
 export function buscarComercios(op: OpcionesBusqueda): ComercioListado[] {
   const rubroPorId = new Map(op.rubros.map((r) => [r.id, r]));
   const palabras = normalizar(op.texto).split(/\s+/).filter(Boolean);
@@ -57,7 +51,6 @@ export function buscarComercios(op: OpcionesBusqueda): ComercioListado[] {
     filas.push({ comercio, rubro, distancia, estado });
   }
 
-  // Sin ubicación no se puede ordenar por distancia: caemos a nombre.
   const orden: Orden = op.orden === "distancia" && !op.ubicacion ? "nombre" : op.orden;
   filas.sort((a, b) => {
     if (orden === "distancia") return (a.distancia ?? Infinity) - (b.distancia ?? Infinity);

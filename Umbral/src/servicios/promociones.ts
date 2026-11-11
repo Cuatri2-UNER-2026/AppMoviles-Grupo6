@@ -1,5 +1,3 @@
-
-
 import { obtenerToken } from "../almacenamiento/seguro";
 import type { Promocion, UsoDePromocion } from "../tipos";
 
@@ -11,18 +9,18 @@ export type { Promocion };
 
 // Datos necesarios para crear una promoción.
 export interface CrearPromocionInput {
-  titulo: string;
-  detalle: string;
-  descuento?: number | null;
-  desde?: string;
-  hasta: string;
-  imagenUrl?: string | null;
-  soloApp?: boolean;
+    titulo: string;
+    detalle: string;
+    descuento?: number | null;
+    desde?: string;
+    hasta: string;
+    imagenUrl?: string | null;
+    soloApp?: boolean;
 }
 
 // Datos que se pueden modificar en una promoción.
 export type ActualizarPromocionInput =
-  Partial<CrearPromocionInput>;
+    Partial<CrearPromocionInput>;
 
 function mapearPromocion(apiPromo: any): Promocion {
   return {
@@ -41,256 +39,279 @@ function mapearPromocion(apiPromo: any): Promocion {
 }
 
 export const promocionesService = {
-  // Obtener promociones públicas por categoría.
-  async obtenerTodas(
-    estado: "vigentes" | "proximas" | "por-vencer" = "vigentes"
-  ): Promise<Promocion[]> {
-    const token = await obtenerToken();
-    const url = `${API_URL}/promociones?estado=${estado}`;
+    // Obtener promociones públicas por categoría.
+    async obtenerTodas(
+        estado: "vigentes" | "proximas" | "por-vencer" = "vigentes"
+    ): Promise<Promocion[]> {
+        const token = await obtenerToken();
+        const url = `${API_URL}/promociones?estado=${estado}`;
 
-    console.log("GET", url);
+        console.log("GET", url);
 
-    const res = await fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+        const res = await fetch(url, {
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        });
 
-    const json = await res.json().catch(() => null);
+        const json = await res.json().catch(() => null);
 
-    console.log("Estado:", res.status);
-    console.log("Respuesta:", json);
+        console.log("Estado:", res.status);
+        console.log("Respuesta:", json);
 
-    if (!res.ok) {
-      throw new Error(
-        json?.error?.mensaje || "Error al obtener promociones"
-      );
-    }
+        if (!res.ok) {
+        throw new Error(
+            json?.error?.mensaje || "Error al obtener promociones"
+        );
+        }
 
-    return (json?.datos ?? []).map(mapearPromocion);
-  },
+        return (json?.datos ?? []).map(mapearPromocion);
+    },
 
-  // Obtener todas las promociones del comercio autenticado.
-  async obtenerMisPromociones(
-    pagina: number = 1,
-    porPagina: number = 100
-  ): Promise<Promocion[]> {
-    const token = await obtenerToken();
+    // Obtener todas las promociones del comercio autenticado.
+    async obtenerMisPromociones(
+        pagina: number = 1,
+        porPagina: number = 100
+    ): Promise<Promocion[]> {
+        const token = await obtenerToken();
 
-    const url =
-      `${API_URL}/mi-comercio/promociones?pagina=${pagina}&porPagina=${porPagina}`;
+        const url =
+        `${API_URL}/mi-comercio/promociones?pagina=${pagina}&porPagina=${porPagina}`;
 
-    console.log("GET", url);
+        console.log("GET", url);
 
-    const res = await fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+        const res = await fetch(url, {
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        });
 
-    const json = await res.json().catch(() => null);
+        const json = await res.json().catch(() => null);
 
-    console.log("Estado de mis promociones:", res.status);
-    console.log("Respuesta de mis promociones:", json);
+        console.log("Estado de mis promociones:", res.status);
+        console.log("Respuesta de mis promociones:", json);
 
-    if (!res.ok) {
-      throw new Error(
-        json?.error?.mensaje ||
-          "Error al obtener las promociones del comercio"
-      );
-    }
+        if (!res.ok) {
+        throw new Error(
+            json?.error?.mensaje ||
+            "Error al obtener las promociones del comercio"
+        );
+        }
 
-    return (json?.datos ?? []).map(mapearPromocion);
-  },
+        return (json?.datos ?? []).map(mapearPromocion);
+    },
 
-  // Obtener el detalle de una promoción.
-  async obtenerPorId(id: string): Promise<Promocion> {
-    const token = await obtenerToken();
-    const url = `${API_URL}/promociones/${id}`;
+    // Obtener el detalle de una promoción.
+    async obtenerPorId(id: string): Promise<Promocion> {
+        const token = await obtenerToken();
+        const url = `${API_URL}/promociones/${id}`;
 
-    console.log("GET", url);
+        console.log("GET", url);
 
-    const res = await fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+        const res = await fetch(url, {
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        });
 
-    const json = await res.json().catch(() => null);
+        const json = await res.json().catch(() => null);
 
-    console.log("Estado:", res.status);
-    console.log("Respuesta:", json);
+        console.log("Estado:", res.status);
+        console.log("Respuesta:", json);
 
-    if (!res.ok) {
-      throw new Error(
-        json?.error?.mensaje || "Error al obtener la promoción"
-      );
-    }
+        if (!res.ok) {
+        throw new Error(
+            json?.error?.mensaje || "Error al obtener la promoción"
+        );
+        }
 
-    return mapearPromocion(json.datos);
-  },
+        return mapearPromocion(json.datos);
+    },
 
-  // Crear una promoción del comercio.
-  async crearPromocion(
-    datos: CrearPromocionInput
-  ): Promise<Promocion> {
-    const token = await obtenerToken();
-    const url = `${API_URL}/mi-comercio/promociones`;
+    // Crear una promoción del comercio.
+    async crearPromocion(
+        datos: CrearPromocionInput
+    ): Promise<Promocion> {
+        const token = await obtenerToken();
+        const url = `${API_URL}/mi-comercio/promociones`;
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(datos),
-    });
+        const res = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(datos),
+        });
 
-    const json = await res.json().catch(() => null);
+        const json = await res.json().catch(() => null);
 
-    console.log("Estado al crear promoción:", res.status);
-    console.log("Respuesta:", json);
+        console.log("Estado al crear promoción:", res.status);
+        console.log("Respuesta:", json);
 
-    if (!res.ok) {
-      throw new Error(
-        json?.error?.mensaje || "No se pudo crear la promoción"
-      );
-    }
+        if (!res.ok) {
+        throw new Error(
+            json?.error?.mensaje || "No se pudo crear la promoción"
+        );
+        }
 
-    return mapearPromocion(json.datos);
-  },
+        return mapearPromocion(json.datos);
+    },
 
-  // Actualizar una promoción propia.
-  async actualizarPromocion(
-    id: string,
-    datos: ActualizarPromocionInput
-  ): Promise<Promocion> {
-    const token = await obtenerToken();
-    const url = `${API_URL}/mi-comercio/promociones/${encodeURIComponent(id)}`;
+    // Actualizar una promoción propia.
+    async actualizarPromocion(
+        id: string,
+        datos: ActualizarPromocionInput
+    ): Promise<Promocion> {
+        const token = await obtenerToken();
+        const url = `${API_URL}/mi-comercio/promociones/${encodeURIComponent(id)}`;
 
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(datos),
-    });
+        const res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(datos),
+        });
 
-    const json = await res.json().catch(() => null);
+        const json = await res.json().catch(() => null);
 
-    console.log("Estado al actualizar promoción:", res.status);
-    console.log("Respuesta:", json);
+        console.log("Estado al actualizar promoción:", res.status);
+        console.log("Respuesta:", json);
 
-    if (!res.ok) {
-      throw new Error(
-        json?.error?.mensaje || "No se pudo actualizar la promoción"
-      );
-    }
+        if (!res.ok) {
+        throw new Error(
+            json?.error?.mensaje || "No se pudo actualizar la promoción"
+        );
+        }
 
-    return mapearPromocion(json.datos);
-  },
+        return mapearPromocion(json.datos);
+    },
 
-  // Obtener los códigos de promociones del usuario.
-  async obtenerMisUsos(): Promise<UsoDePromocion[]> {
-    const token = await obtenerToken();
-    const url = `${API_URL}/yo/usos?pagina=1&porPagina=100`;
+    // Obtener los códigos de promociones del usuario.
+    async obtenerMisUsos(): Promise<UsoDePromocion[]> {
+        const token = await obtenerToken();
+        const url = `${API_URL}/yo/usos?pagina=1&porPagina=100`;
 
-    console.log("GET", url);
+        console.log("GET", url);
 
-    const res = await fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+        const res = await fetch(url, {
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        });
 
-    const json = await res.json().catch(() => null);
+        const json = await res.json().catch(() => null);
 
-    console.log("Estado de mis códigos:", res.status);
-    console.log("Respuesta de mis códigos:", json);
+        console.log("Estado de mis códigos:", res.status);
+        console.log("Respuesta de mis códigos:", json);
 
-    if (!res.ok) {
-      throw new Error(
-        json?.error?.mensaje ||
-          "Error al obtener los códigos de promociones"
-      );
-    }
+        if (!res.ok) {
+        throw new Error(
+            json?.error?.mensaje ||
+            "Error al obtener los códigos de promociones"
+        );
+        }
 
-    return json?.datos ?? [];
-  },
+        return json?.datos ?? [];
+    },
 
-  // Validar un código QR en el comercio.
-  async canjearPromocion(
-    codigo: string
-  ): Promise<{ success: boolean; mensaje: string }> {
-    const token = await obtenerToken();
-    const url = `${API_URL}/mi-comercio/usos/validar`;
+    // Pedir mi código de una promoción exclusiva de la app (crea el uso o devuelve el mismo).
+    async generarCodigo(promocionId: string): Promise<UsoDePromocion> {
+        const token = await obtenerToken();
+        const url = `${API_URL}/promociones/${encodeURIComponent(promocionId)}/usos`;
 
-    console.log("POST", url);
+        const res = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({}),
+        });
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ codigo }),
-    });
+        const json = await res.json().catch(() => null);
 
-    const json = await res.json().catch(() => null);
+        if (!res.ok) {
+        throw new Error(json?.error?.mensaje || "No se pudo generar el código");
+        }
 
-    console.log("Estado:", res.status);
-    console.log("Respuesta:", json);
+        return json.datos as UsoDePromocion;
+    },
 
-    if (!res.ok) {
-      throw new Error(
-        json?.error?.mensaje || "Error al validar el código"
-      );
-    }
+    // Validar un código QR en el comercio.
+    async canjearPromocion(
+        codigo: string
+    ): Promise<{ success: boolean; mensaje: string }> {
+        const token = await obtenerToken();
+        const url = `${API_URL}/mi-comercio/usos/validar`;
 
-    return {
-      success: true,
-      mensaje: json?.datos?.mensaje || "Código validado correctamente",
-    };
-  },
+        console.log("POST", url);
 
-  // Dar de baja una promoción.
-  async eliminarPromocion(id: string): Promise<void> {
-    const token = await obtenerToken();
-    const url = `${API_URL}/mi-comercio/promociones/${encodeURIComponent(id)}`;
+        const res = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ codigo }),
+        });
 
-    const res = await fetch(url, {
-      method: "DELETE",
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+        const json = await res.json().catch(() => null);
 
-    if (!res.ok) {
-      const json = await res.json().catch(() => null);
+        console.log("Estado:", res.status);
+        console.log("Respuesta:", json);
 
-      throw new Error(
-        json?.error?.mensaje || "No se pudo eliminar la promoción"
-      );
-    }
-  },
+        if (!res.ok) {
+        throw new Error(
+            json?.error?.mensaje || "Error al validar el código"
+        );
+        }
 
-  // Mantener compatibilidad con las pantallas existentes.
-  async obtenerPromociones(
-    estado?: "vigentes" | "proximas" | "por-vencer"
-  ): Promise<Promocion[]> {
-    return this.obtenerTodas(estado);
-  },
+        return {
+        success: true,
+        mensaje: json?.datos?.mensaje || "Código validado correctamente",
+        };
+    },
 
-  async obtenerPromocionPorId(id: string): Promise<Promocion> {
-    return this.obtenerPorId(id);
-  },
+    // Dar de baja una promoción.
+    async eliminarPromocion(id: string): Promise<void> {
+        const token = await obtenerToken();
+        const url = `${API_URL}/mi-comercio/promociones/${encodeURIComponent(id)}`;
 
-  async validarCodigoQR(codigo: string) {
-    return this.canjearPromocion(codigo);
-  },
+        const res = await fetch(url, {
+        method: "DELETE",
+        headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        });
+
+        if (!res.ok) {
+        const json = await res.json().catch(() => null);
+
+        throw new Error(
+            json?.error?.mensaje || "No se pudo eliminar la promoción"
+        );
+        }
+    },
+
+    // Mantener compatibilidad con las pantallas existentes.
+    async obtenerPromociones(
+        estado?: "vigentes" | "proximas" | "por-vencer"
+    ): Promise<Promocion[]> {
+        return this.obtenerTodas(estado);
+    },
+
+    async obtenerPromocionPorId(id: string): Promise<Promocion> {
+        return this.obtenerPorId(id);
+    },
+
+    async validarCodigoQR(codigo: string) {
+        return this.canjearPromocion(codigo);
+    },
 };

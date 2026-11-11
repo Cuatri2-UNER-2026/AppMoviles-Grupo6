@@ -1,15 +1,18 @@
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Introduccion } from "../src/componentes/intro";
 import { useAvisos } from "../src/hooks/useAvisos";
 import { archivosDeFuentes } from "../src/tema";
+import { BannerSinConexion } from "../src/componentes/estados/BannerSinConexion";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   useAvisos();
   const [fuentesListas, errorFuentes] = useFonts(archivosDeFuentes);
+  const [intro, setIntro] = useState(true);
 
   useEffect(() => {
     if (fuentesListas || errorFuentes) SplashScreen.hideAsync();
@@ -18,6 +21,17 @@ export default function RootLayout() {
   if (!fuentesListas && !errorFuentes) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}/>
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      <BannerSinConexion />
+      {intro && (
+        <Introduccion
+          alNavegar={(destino) => {
+            if (destino === "login") router.push("/login");
+          }}
+          alCerrar={() => setIntro(false)}
+        />
+      )}
+    </>
   );
 }

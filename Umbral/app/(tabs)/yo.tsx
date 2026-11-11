@@ -1,20 +1,19 @@
-
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+  AvatarInicial,
+  Aviso,
+  Boton,
+  Chip,
+  EstadoCarga,
+  FilaSwitch,
+  FondoDegradado,
+  SeccionTitulo,
+  TarjetaComercio,
+  TarjetaVidrio,
+} from "../../src/componentes";
 import { obtenerUltimoEmail } from "../../src/almacenamiento/preferencias";
-import { C } from "../../src/componentes/formularioAuth";
 import { useSesion } from "../../src/hooks/useSesion";
 import {
   actualizarYo,
@@ -26,6 +25,7 @@ import { ErrorApi } from "../../src/servicios/cliente";
 import { listarRubros } from "../../src/servicios/comercios";
 import { listarFavoritos, quitarFavorito } from "../../src/servicios/favoritos";
 import { cambiarAvisos, revisarPromos } from "../../src/servicios/notificaciones";
+import { colores, fuentes } from "../../src/tema";
 import type { Comercio, Rubro, Usuario } from "../../src/tipos";
 
 function mensajeDe(e: unknown) {
@@ -39,16 +39,12 @@ export default function Yo() {
   const sesion = useSesion();
 
   return (
-    <LinearGradient colors={[C.lila, C.niebla, C.niebla, C.salvia]} style={estilos.fondo}>
-      {sesion.estado === "cargando" && (
-        <View style={estilos.centro}>
-          <ActivityIndicator color={C.pizarra} size="large" />
-        </View>
-      )}
+    <FondoDegradado colores={[colores.lila, colores.niebla, colores.niebla, colores.salvia]}>
+      {sesion.estado === "cargando" && <EstadoCarga texto="" />}
       {sesion.estado === "sin-sesion" && <SinSesion />}
       {sesion.estado === "bloqueada" && <Bloqueada />}
       {sesion.estado === "activa" && <Perfil usuario={sesion.usuario} />}
-    </LinearGradient>
+    </FondoDegradado>
   );
 }
 
@@ -59,12 +55,8 @@ function SinSesion() {
       <Text style={estilos.texto}>
         Ingresá para guardar favoritos, elegir tus rubros y recibir avisos de promos.
       </Text>
-      <Pressable style={estilos.botonOscuro} onPress={() => router.push("/login")}>
-        <Text style={estilos.textoBotonOscuro}>Ingresar</Text>
-      </Pressable>
-      <Pressable style={estilos.botonClaro} onPress={() => router.push("/registro")}>
-        <Text style={estilos.textoBotonClaro}>Crear cuenta</Text>
-      </Pressable>
+      <Boton texto="Ingresar" onPress={() => router.push("/login")} />
+      <Boton texto="Crear cuenta" variante="claro" onPress={() => router.push("/registro")} />
     </View>
   );
 }
@@ -105,31 +97,16 @@ function Bloqueada() {
           Este teléfono no tiene huella ni rostro configurados. Ingresá con tu contraseña.
         </Text>
       )}
-      {biometria && (
-        <Text style={estilos.texto}>Confirmá que sos vos para ver tu cuenta.</Text>
-      )}
-      {error && <Text style={estilos.error}>{error}</Text>}
+      {biometria && <Text style={estilos.texto}>Confirmá que sos vos para ver tu cuenta.</Text>}
+      {error && <Aviso icono="alert-circle-outline" texto={error} />}
 
-      {biometria && (
-        <Pressable style={estilos.botonOscuro} onPress={desbloquear} disabled={ocupado}>
-          {ocupado ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={estilos.textoBotonOscuro}>Usar huella o rostro</Text>
-          )}
-        </Pressable>
-      )}
-      <Pressable
-        style={biometria === false ? estilos.botonOscuro : estilos.botonClaro}
+      {biometria && <Boton texto="Usar huella o rostro" onPress={desbloquear} cargando={ocupado} />}
+      <Boton
+        texto="Ingresar con contraseña"
+        variante={biometria === false ? "primario" : "claro"}
         onPress={conContrasena}
-      >
-        <Text style={biometria === false ? estilos.textoBotonOscuro : estilos.textoBotonClaro}>
-          Ingresar con contraseña
-        </Text>
-      </Pressable>
-      <Pressable onPress={salir}>
-        <Text style={estilos.enlace}>No soy yo, cerrar sesión</Text>
-      </Pressable>
+      />
+      <Boton texto="No soy yo, cerrar sesión" variante="texto" onPress={salir} />
     </View>
   );
 }
@@ -149,7 +126,7 @@ function Perfil({ usuario }: { usuario: Usuario }) {
     <ScrollView contentContainerStyle={estilos.pantalla}>
       <Text style={estilos.tituloGrande}>Yo</Text>
       <DatosCuenta usuario={usuario} onError={setError} />
-      {error && <Text style={estilos.error}>{error}</Text>}
+      {error && <Aviso icono="alert-circle-outline" texto={error} />}
 
       {esVecino ? (
         <>
@@ -158,14 +135,10 @@ function Perfil({ usuario }: { usuario: Usuario }) {
           <Avisos activos={usuario.avisosActivos} onError={setError} />
         </>
       ) : (
-        <Pressable style={estilos.botonOscuro} onPress={() => router.push("/panel")}>
-          <Text style={estilos.textoBotonOscuro}>Ir al panel de mi comercio</Text>
-        </Pressable>
+        <Boton texto="Ir al panel de mi comercio" onPress={() => router.push("/panel")} />
       )}
 
-      <Pressable style={estilos.botonClaro} onPress={confirmarSalida}>
-        <Text style={[estilos.textoBotonClaro, { color: C.error }]}>Cerrar sesión</Text>
-      </Pressable>
+      <Boton texto="Cerrar sesión" variante="peligro" onPress={confirmarSalida} style={{ marginBottom: 20 }} />
     </ScrollView>
   );
 }
@@ -193,11 +166,9 @@ function DatosCuenta({ usuario, onError }: { usuario: Usuario; onError: (m: stri
   }
 
   return (
-    <View style={estilos.tarjeta}>
+    <TarjetaVidrio style={estilos.tarjeta}>
       <View style={estilos.fila}>
-        <View style={estilos.avatar}>
-          <Text style={estilos.letraAvatar}>{usuario.nombre.charAt(0).toUpperCase()}</Text>
-        </View>
+        <AvatarInicial nombre={usuario.nombre} tamano={52} />
         <View style={{ flex: 1 }}>
           {editando ? (
             <TextInput
@@ -206,6 +177,7 @@ function DatosCuenta({ usuario, onError }: { usuario: Usuario; onError: (m: stri
               autoFocus
               autoCapitalize="words"
               style={estilos.input}
+              accessibilityLabel="Nombre"
             />
           ) : (
             <Text style={estilos.nombre}>{usuario.nombre}</Text>
@@ -213,32 +185,30 @@ function DatosCuenta({ usuario, onError }: { usuario: Usuario; onError: (m: stri
           <Text style={estilos.textoChico}>{usuario.email}</Text>
         </View>
       </View>
+
       <View style={estilos.fila}>
-        <View style={[estilos.chip, { backgroundColor: C.salvia }]}>
-          <Text style={estilos.textoChip}>{usuario.rol === "vecino" ? "Vecino" : "Comercio"}</Text>
+        <View style={estilos.chipRol}>
+          <Text style={estilos.textoChipRol}>{usuario.rol === "vecino" ? "Vecino" : "Comercio"}</Text>
         </View>
         <View style={{ flex: 1 }} />
         {editando ? (
           <>
-            <Pressable
+            <Boton
+              texto="Cancelar"
+              variante="texto"
+              compacto
               onPress={() => {
                 setNombre(usuario.nombre);
                 setEditando(false);
               }}
-            >
-              <Text style={estilos.enlace}>Cancelar</Text>
-            </Pressable>
-            <Pressable style={estilos.botonChico} onPress={guardar} disabled={guardando}>
-              <Text style={estilos.textoBotonOscuro}>{guardando ? "Guardando..." : "Guardar"}</Text>
-            </Pressable>
+            />
+            <Boton texto="Guardar" compacto cargando={guardando} onPress={guardar} />
           </>
         ) : (
-          <Pressable style={estilos.botonChicoClaro} onPress={() => setEditando(true)}>
-            <Text style={estilos.textoBotonClaro}>Editar nombre</Text>
-          </Pressable>
+          <Boton texto="Editar nombre" variante="blanco" compacto onPress={() => setEditando(true)} />
         )}
       </View>
-    </View>
+    </TarjetaVidrio>
   );
 }
 
@@ -265,32 +235,25 @@ function Favoritos({ ids, onError }: { ids: string[]; onError: (m: string | null
 
   return (
     <View style={estilos.seccion}>
-      <Text style={estilos.tituloSeccion}>Mis favoritos</Text>
-      {comercios === null && <ActivityIndicator color={C.pizarra} />}
+      <SeccionTitulo texto="Mis favoritos" />
+      {comercios === null && <EstadoCarga texto="" style={estilos.cargaInline} />}
       {comercios?.length === 0 && (
-        <View style={estilos.tarjeta}>
+        <TarjetaVidrio style={estilos.tarjeta}>
           <Text style={estilos.textoChico}>
             Todavía no guardaste comercios. Tocá “Guardar” en la ficha de uno para tenerlo acá.
           </Text>
-        </View>
+        </TarjetaVidrio>
       )}
       {comercios?.map((c) => (
-        <Pressable
+        <TarjetaComercio
           key={c.id}
-          style={[estilos.tarjeta, estilos.fila]}
-          onPress={() => router.push({ pathname: "/comercio/[id]", params: { id: c.id } })}
-        >
-          <View style={[estilos.avatar, { backgroundColor: C.celeste }]}>
-            <Text style={estilos.letraAvatar}>{c.nombre.charAt(0)}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={estilos.nombreChico}>{c.nombre}</Text>
-            <Text style={estilos.textoChico}>{c.direccion}</Text>
-          </View>
-          <Pressable onPress={() => quitar(c.id)} hitSlop={10}>
-            <Text style={estilos.enlace}>Quitar</Text>
-          </Pressable>
-        </Pressable>
+          comercio={c}
+          derecha={
+            <Pressable onPress={() => quitar(c.id)} hitSlop={10} accessibilityLabel={`Quitar ${c.nombre} de favoritos`}>
+              <Text style={estilos.enlace}>Quitar</Text>
+            </Pressable>
+          }
+        />
       ))}
     </View>
   );
@@ -320,25 +283,15 @@ function Rubros({ elegidos, onError }: { elegidos: string[]; onError: (m: string
 
   return (
     <View style={estilos.seccion}>
-      <Text style={estilos.tituloSeccion}>Rubros que me interesan</Text>
-      <Text style={estilos.textoChico}>Te avisamos cuando haya promos nuevas de estos rubros.</Text>
-      {rubros === null && <ActivityIndicator color={C.pizarra} />}
+      <SeccionTitulo
+        texto="Rubros que me interesan"
+        ayuda="Te avisamos cuando haya promos nuevas de estos rubros."
+      />
+      {rubros === null && <EstadoCarga texto="" style={estilos.cargaInline} />}
       <View style={estilos.chips}>
-        {rubros?.map((r) => {
-          const activo = elegidos.includes(r.id);
-          return (
-            <Pressable
-              key={r.id}
-              onPress={() => alternar(r.id)}
-              style={[
-                estilos.chipGrande,
-                activo && { backgroundColor: C.pizarra, borderColor: C.pizarra },
-              ]}
-            >
-              <Text style={[estilos.textoChipGrande, activo && { color: "#fff" }]}>{r.nombre}</Text>
-            </Pressable>
-          );
-        })}
+        {rubros?.map((r) => (
+          <Chip key={r.id} texto={r.nombre} activo={elegidos.includes(r.id)} onPress={() => alternar(r.id)} />
+        ))}
       </View>
     </View>
   );
@@ -370,114 +323,52 @@ function Avisos({ activos, onError }: { activos: boolean; onError: (m: string | 
 
   return (
     <View style={estilos.seccion}>
-      <Text style={estilos.tituloSeccion}>Avisos</Text>
-      <View style={[estilos.tarjeta, estilos.fila]}>
-        <View style={{ flex: 1 }}>
-          <Text style={estilos.nombreChico}>Recibir avisos</Text>
-          <Text style={estilos.textoChico}>
-            {valor
-              ? "Promos nuevas de tus favoritos y rubros, y un recordatorio el día antes de que venzan."
-              : "Todos los avisos están apagados."}
-          </Text>
-        </View>
-        <Switch
-          value={valor}
-          onValueChange={cambiar}
-          trackColor={{ true: C.indigo, false: "#D1D5DB" }}
-          thumbColor="#fff"
-        />
-      </View>
+      <SeccionTitulo texto="Avisos" />
+      <FilaSwitch
+        titulo="Recibir avisos"
+        descripcion={
+          valor
+            ? "Promos nuevas de tus favoritos y rubros, y un recordatorio el día antes de que venzan."
+            : "Todos los avisos están apagados."
+        }
+        value={valor}
+        onValueChange={cambiar}
+      />
       {valor && (
-        <Pressable onPress={revisarAhora} disabled={revisando}>
-          <Text style={estilos.enlace}>{revisando ? "Buscando..." : "Buscar promos nuevas ahora"}</Text>
-        </Pressable>
+        <Boton
+          texto="Buscar promos nuevas ahora"
+          variante="texto"
+          compacto
+          cargando={revisando}
+          onPress={revisarAhora}
+        />
       )}
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  fondo: { flex: 1 },
   centro: { flex: 1, justifyContent: "center", padding: 24, gap: 12 },
   pantalla: { padding: 20, paddingTop: 70, paddingBottom: 120, gap: 14 },
-  tituloGrande: { fontSize: 44, fontWeight: "800", color: C.pizarra, letterSpacing: -1 },
-  texto: { fontSize: 16, color: C.gris, marginBottom: 8, lineHeight: 22 },
-  error: {
-    color: C.error,
-    backgroundColor: C.durazno,
-    padding: 12,
-    borderRadius: 16,
-    fontWeight: "600",
-  },
-  tarjeta: {
-    backgroundColor: "rgba(255,255,255,0.75)",
-    borderRadius: 28,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.9)",
-  },
+  tituloGrande: { fontFamily: fuentes.titulo, fontSize: 44, color: colores.pizarra, letterSpacing: -1 },
+  texto: { fontFamily: fuentes.texto, fontSize: 16, color: colores.gris, marginBottom: 8, lineHeight: 22 },
+  tarjeta: { gap: 12, padding: 16 },
   fila: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: C.lila,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  letraAvatar: { fontSize: 22, fontWeight: "800", color: C.pizarra },
-  nombre: { fontSize: 22, fontWeight: "800", color: C.pizarra },
-  nombreChico: { fontSize: 16, fontWeight: "700", color: C.pizarra },
-  textoChico: { fontSize: 14, color: C.gris, lineHeight: 19 },
+  nombre: { fontFamily: fuentes.titulo, fontSize: 22, color: colores.pizarra },
+  textoChico: { fontFamily: fuentes.texto, fontSize: 14, color: colores.gris, lineHeight: 19 },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: colores.blanco,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
+    fontFamily: fuentes.textoNegrita,
     fontSize: 18,
-    fontWeight: "700",
-    color: C.pizarra,
+    color: colores.pizarra,
   },
-  chip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
-  textoChip: { fontSize: 13, fontWeight: "700", color: C.pizarra },
+  chipRol: { backgroundColor: colores.salvia, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  textoChipRol: { fontFamily: fuentes.textoNegrita, fontSize: 13, color: colores.pizarra },
   seccion: { gap: 10, marginTop: 6 },
-  tituloSeccion: { fontSize: 20, fontWeight: "800", color: C.pizarra },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chipGrande: {
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: "rgba(255,255,255,0.8)",
-    borderWidth: 1,
-    borderColor: "#fff",
-  },
-  textoChipGrande: { fontSize: 15, fontWeight: "600", color: C.pizarra },
-  botonOscuro: {
-    backgroundColor: C.pizarra,
-    borderRadius: 999,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  textoBotonOscuro: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  botonClaro: {
-    backgroundColor: "rgba(255,255,255,0.85)",
-    borderRadius: 999,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  textoBotonClaro: { color: C.pizarra, fontSize: 16, fontWeight: "700" },
-  botonChico: {
-    backgroundColor: C.pizarra,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-  },
-  botonChicoClaro: {
-    backgroundColor: "#fff",
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-  },
-  enlace: { color: C.indigo, fontWeight: "700", fontSize: 15, textAlign: "center", padding: 6 },
+  enlace: { fontFamily: fuentes.textoNegrita, color: colores.indigo, fontSize: 15, padding: 6 },
+  cargaInline: { flex: 0, paddingVertical: 16 }
 });

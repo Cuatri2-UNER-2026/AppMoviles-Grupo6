@@ -1,19 +1,12 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { Link, router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Text, View } from "react-native";
 import { obtenerUltimoEmail } from "../../src/almacenamiento/preferencias";
+import { Campo, EMAIL_VALIDO, estilos, PantallaAuth } from "../../src/componentes/formularioAuth";
+import { Boton } from "../../src/componentes/ui/Boton";
 import { ingresar } from "../../src/servicios/auth";
 import { ErrorApi } from "../../src/servicios/cliente";
-import { C, Campo, EMAIL_VALIDO, estilos } from "../../src/componentes/formularioAuth";
+import { colores } from "../../src/tema";
 
 export default function Login() {
   const params = useLocalSearchParams<{ email?: string }>();
@@ -47,53 +40,36 @@ export default function Login() {
   }
 
   return (
-    <LinearGradient colors={[C.salvia, C.niebla, C.lila]} style={estilos.fondo}>
-      <KeyboardAvoidingView
-        style={estilos.fondo}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView contentContainerStyle={estilos.pantalla} keyboardShouldPersistTaps="handled">
-          <Text style={estilos.titulo}>Ingresá</Text>
-          <Text style={estilos.subtitulo}>Para guardar favoritos, reseñar y usar promos.</Text>
+    <PantallaAuth fondo={[colores.salvia, colores.niebla, colores.lila]}>
+      <Text style={estilos.titulo}>Ingresá</Text>
+      <Text style={estilos.subtitulo}>Para guardar favoritos, reseñar y usar promos.</Text>
 
-          <View style={estilos.tarjeta}>
-            <Campo
-              etiqueta="Email"
-              valor={email}
-              alCambiar={setEmail}
-              error={errores.email}
-              keyboardType="email-address"
-              autoComplete="email"
-            />
-            <Campo
-              etiqueta="Contraseña"
-              valor={contrasena}
-              alCambiar={setContrasena}
-              error={errores.contrasena}
-              secureTextEntry
-              autoComplete="password"
-            />
+      <View style={estilos.tarjeta}>
+        <Campo
+          etiqueta="Email"
+          valor={email}
+          alCambiar={setEmail}
+          error={errores.email}
+          keyboardType="email-address"
+          autoComplete="email"
+        />
+        <Campo
+          etiqueta="Contraseña"
+          valor={contrasena}
+          alCambiar={setContrasena}
+          error={errores.contrasena}
+          secureTextEntry
+          autoComplete="password"
+        />
 
-            {errorApi && <Text style={estilos.errorApi}>{errorApi}</Text>}
+        {errorApi && <Text style={estilos.errorApi}>{errorApi}</Text>}
 
-            <Pressable
-              style={[estilos.boton, enviando && estilos.botonApagado]}
-              onPress={enviar}
-              disabled={enviando}
-            >
-              {enviando ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={estilos.textoBoton}>Ingresar</Text>
-              )}
-            </Pressable>
-          </View>
+        <Boton texto="Ingresar" onPress={enviar} cargando={enviando} />
+      </View>
 
-          <Link href="/registro" replace style={estilos.enlace}>
-            ¿No tenés cuenta? <Text style={estilos.enlaceFuerte}>Creá una</Text>
-          </Link>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </LinearGradient>
+      <Link href="/registro" replace style={estilos.enlace}>
+        ¿No tenés cuenta? <Text style={estilos.enlaceFuerte}>Creá una</Text>
+      </Link>
+    </PantallaAuth>
   );
 }

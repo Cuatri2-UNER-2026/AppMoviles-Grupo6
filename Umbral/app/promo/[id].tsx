@@ -1,319 +1,182 @@
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import QRCode from "react-native-qrcode-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  Aviso,
+  Boton,
+  BotonRedondo,
+  EstadoCarga,
+  EstadoError,
+  FondoDegradado,
+  Insignia,
+  SeccionTitulo,
+  TarjetaVidrio,
+} from "../../src/componentes";
+import { useCarga } from "../../src/hooks/useCarga";
+import { useSesion } from "../../src/hooks/useSesion";
+import { promocionesService } from "../../src/servicios/promociones";
+import { colores, fuentes } from "../../src/tema";
+import type { UsoDePromocion } from "../../src/tipos";
+import { partirTitulo } from "../../src/utils/promos";
 
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  TouchableOpacity,
-} from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import QRCode from 'react-native-qrcode-svg';
-import {
-  promocionesService,
-  Promocion,
-} from '../../src/servicios/promociones';
+const FONDO = [colores.salvia, colores.niebla, colores.niebla, colores.lila] as const;
 
 export default function DetallePromoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const sesion = useSesion();
 
-  const [promo, setPromo] = useState<Promocion | null>(null);
-  const [codigoQR, setCodigoQR] = useState<string | null>(null);
-  const [mensajeQR, setMensajeQR] = useState('');
-  const [cargando, setCargando] = useState(true);
-  const [cargandoQR, setCargandoQR] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { datos: promo, cargando, error, reintentar } = useCarga(
+    () => promocionesService.obtenerPromocionPorId(id),
+    [id],
+  );
 
+  const [uso, setUso] = useState<UsoDePromocion | null>(null);
+  const [cargandoUso, setCargandoUso] = useState(false);
+  const [generando, setGenerando] = useState(false);
+  const [errorUso, setErrorUso] = useState<string | null>(null);
+
+  const esVecino = sesion.estado === "activa" && sesion.usuario.rol === "vecino";
+
+  // Si ya pidió el código antes, lo recuperamos (la API devuelve el mismo hasta que se use).
   useEffect(() => {
+    if (!promo?.soloApp || !esVecino) return;
     let activo = true;
-
-    const cargarDetalle = async () => {
-      if (!id || typeof id !== 'string') {
-        setError('No se recibió el identificador de la promoción');
-        setCargando(false);
-        return;
-      }
-
-      try {
-        setCargando(true);
-        setError(null);
-
-        const data = await promocionesService.obtenerPromocionPorId(id);
-
-        if (!activo) return;
-
-        setPromo(data);
-
-        if (data.soloApp) {
-          setCargandoQR(true);
-          setMensajeQR('');
-
-          try {
-            const usos = await promocionesService.obtenerMisUsos();
-
-            if (!activo) return;
-
-            const usoEncontrado = usos.find(
-              (uso) => uso.promocionId === data.id
-            );
-
-            if (!usoEncontrado) {
-              setMensajeQR(
-                'Todavía no tenés un código de canje para esta promoción.'
-              );
-            } else if (usoEncontrado.validadoEn) {
-              setMensajeQR('Este código ya fue utilizado.');
-            } else {
-              setCodigoQR(usoEncontrado.codigo);
-            }
-          } catch (err: any) {
-            if (activo) {
-              setMensajeQR(
-                err.message || 'No se pudieron cargar tus códigos.'
-              );
-            }
-          } finally {
-            if (activo) {
-              setCargandoQR(false);
-            }
-          }
-        }
-      } catch (err: any) {
-        if (activo) {
-          setError(err.message || 'Error al cargar la promoción');
-        }
-      } finally {
-        if (activo) {
-          setCargando(false);
-        }
-      }
-    };
-
-    cargarDetalle();
-
+    setCargandoUso(true);
+    promocionesService
+      .obtenerMisUsos()
+      .then((usos) => activo && setUso(usos.find((u) => u.promocionId === promo.id) ?? null))
+      .catch((e) => activo && setErrorUso(e instanceof Error ? e.message : "No pudimos cargar tu código."))
+      .finally(() => activo && setCargandoUso(false));
     return () => {
       activo = false;
     };
-  }, [id]);
+  }, [promo?.id, promo?.soloApp, esVecino]);
 
-  if (cargando) {
+  async function generar() {
+    if (!promo) return;
+    setErrorUso(null);
+    setGenerando(true);
+    try {
+      setUso(await promocionesService.generarCodigo(promo.id));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (e) {
+      setErrorUso(e instanceof Error ? e.message : "No pudimos generar tu código.");
+    } finally {
+      setGenerando(false);
+    }
+  }
+
+  if (cargando || error || !promo) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1A1D20" />
-        <Text style={styles.textoCargando}>Cargando promoción...</Text>
-      </View>
+      <FondoDegradado colores={FONDO}>
+        <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, alignItems: "flex-start" }}>
+          <BotonRedondo />
+        </View>
+        {cargando ? (
+          <EstadoCarga texto="Cargando promoción…" />
+        ) : (
+          <EstadoError titulo="No pudimos abrir la promoción" texto={error} onReintentar={reintentar} />
+        )}
+      </FondoDegradado>
     );
   }
 
-  if (error || !promo) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorTexto}>
-          {error || 'Promoción no encontrada'}
-        </Text>
-
-        <TouchableOpacity
-          style={styles.botonVolver}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.botonVolverTexto}>Volver</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const fechaHasta =
-    promo.hasta && !Number.isNaN(Date.parse(promo.hasta))
-      ? new Date(promo.hasta).toLocaleDateString('es-AR', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        })
-      : 'Fecha no disponible';
+  const { grande, resto } = partirTitulo(promo);
+  const hastaMs = Date.parse(promo.hasta);
+  const hasta = Number.isNaN(hastaMs)
+    ? "fecha no disponible"
+    : new Date(hastaMs).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <TouchableOpacity
-        style={styles.botonAtras}
-        onPress={() => router.back()}
+    <FondoDegradado colores={FONDO}>
+      <ScrollView
+        contentContainerStyle={[estilos.contenido, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40 }]}
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.botonAtrasTexto}>← Volver</Text>
-      </TouchableOpacity>
-
-      <View style={styles.cardHeader}>
-        {promo.soloApp && (
-          <Text style={styles.badge}>SOLO APP</Text>
-        )}
-
-        <Text style={styles.descuento}>
-          {promo.descuento != null
-            ? `${promo.descuento}% OFF`
-            : 'Beneficio especial'}
-        </Text>
-
-        <Text style={styles.titulo}>{promo.titulo}</Text>
-      </View>
-
-      <View style={styles.seccion}>
-        <Text style={styles.seccionTitulo}>Condiciones</Text>
-
-        <Text style={styles.descripcion}>
-          {promo.detalle || 'No hay condiciones adicionales.'}
-        </Text>
-
-        <Text style={styles.fecha}>
-          Válido hasta el {fechaHasta}
-        </Text>
-      </View>
-
-      {promo.soloApp && (
-        <View style={styles.qrContainer}>
-          <Text style={styles.qrTitulo}>
-            Presentá este código en el local
-          </Text>
-
-          {cargandoQR ? (
-            <ActivityIndicator size="large" color="#1A1D20" />
-          ) : codigoQR ? (
-            <>
-              <View style={styles.qrWrapper}>
-                <QRCode value={codigoQR} size={200} />
-              </View>
-
-              <Text style={styles.qrCodigoTexto}>
-                {codigoQR}
-              </Text>
-            </>
-          ) : (
-            <Text style={styles.qrPendiente}>
-              {mensajeQR}
-            </Text>
-          )}
+        <View style={{ alignSelf: "flex-start" }}>
+          <BotonRedondo />
         </View>
-      )}
-    </ScrollView>
+
+        <LinearGradient
+          colors={[colores.duraznoClaro, colores.durazno]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.6, y: 1 }}
+          style={estilos.cabecera}
+        >
+          {promo.soloApp && <Insignia />}
+          <Text style={estilos.grande} numberOfLines={1} adjustsFontSizeToFit>
+            {grande}
+          </Text>
+          <Text style={estilos.titulo}>{resto}</Text>
+        </LinearGradient>
+
+        <TarjetaVidrio style={estilos.tarjeta}>
+          <SeccionTitulo texto="Condiciones" />
+          <Text style={estilos.parrafo}>{promo.detalle || "No hay condiciones adicionales."}</Text>
+          <Text style={estilos.fecha}>Válida hasta el {hasta}</Text>
+        </TarjetaVidrio>
+
+        {promo.soloApp && (
+          <TarjetaVidrio style={estilos.tarjeta}>
+            <SeccionTitulo texto="Tu código" ayuda="Mostralo en el local. Se usa una sola vez." />
+
+            {sesion.estado === "cargando" || cargandoUso ? (
+              <EstadoCarga texto="" style={estilos.estado} />
+            ) : sesion.estado === "sin-sesion" ? (
+              <>
+                <Aviso texto="Necesitás una cuenta para usar esta promo." />
+                <Boton texto="Ingresar o crear cuenta" onPress={() => router.push("/login")} />
+              </>
+            ) : sesion.estado === "bloqueada" ? (
+              <>
+                <Aviso texto="Desbloqueá tu cuenta para pedir tu código." />
+                <Boton texto="Desbloquear mi cuenta" onPress={() => router.push("/yo")} />
+              </>
+            ) : !esVecino ? (
+              <Aviso texto="Las cuentas de comercio no generan códigos." />
+            ) : uso?.validadoEn ? (
+              <Aviso icono="checkmark-circle-outline" texto="Este código ya se usó." />
+            ) : uso ? (
+              <View style={estilos.qr}>
+                <View style={estilos.qrMarco}>
+                  <QRCode value={uso.codigo} size={200} />
+                </View>
+                <Text style={estilos.codigo}>{uso.codigo}</Text>
+              </View>
+            ) : (
+              <Boton texto="Obtener mi código" icono="qr-code-outline" onPress={generar} cargando={generando} />
+            )}
+
+            {errorUso && <Aviso icono="alert-circle-outline" texto={errorUso} />}
+          </TarjetaVidrio>
+        )}
+      </ScrollView>
+    </FondoDegradado>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    backgroundColor: '#F8F9FA',
-    flexGrow: 1,
-    paddingTop: 50,
+const estilos = StyleSheet.create({
+  contenido: { paddingHorizontal: 20, gap: 16 },
+  cabecera: {
+    padding: 22,
+    gap: 2,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 64,
+    borderBottomRightRadius: 72,
+    borderBottomLeftRadius: 36,
   },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  textoCargando: {
-    marginTop: 12,
-    color: '#6C757D',
-  },
-  botonAtras: {
-    marginBottom: 16,
-  },
-  botonAtrasTexto: {
-    fontSize: 16,
-    color: '#1A1D20',
-    fontWeight: 'bold',
-  },
-  cardHeader: {
-    backgroundColor: '#FFEAD2',
-    padding: 24,
-    borderRadius: 20,
-    marginBottom: 20,
-  },
-  badge: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#6C757D',
-    marginBottom: 6,
-  },
-  descuento: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    color: '#1A1D20',
-  },
-  titulo: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1A1D20',
-    marginTop: 6,
-  },
-  seccion: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
-  },
-  seccionTitulo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1A1D20',
-    marginBottom: 8,
-  },
-  descripcion: {
-    fontSize: 15,
-    color: '#495057',
-    lineHeight: 22,
-  },
-  fecha: {
-    fontSize: 13,
-    color: '#6C757D',
-    marginTop: 12,
-    fontWeight: '500',
-  },
-  qrContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
-    borderRadius: 20,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  qrTitulo: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1A1D20',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  qrWrapper: {
-    padding: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    elevation: 2,
-  },
-  qrCodigoTexto: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#6C757D',
-    fontWeight: '500',
-  },
-  qrPendiente: {
-    fontSize: 14,
-    color: '#6C757D',
-    textAlign: 'center',
-    lineHeight: 21,
-  },
-  errorTexto: {
-    color: '#D9534F',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  botonVolver: {
-    backgroundColor: '#1A1D20',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  botonVolverTexto: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
+  grande: { fontFamily: fuentes.titulo, fontSize: 72, lineHeight: 80, color: colores.pizarra, letterSpacing: -2 },
+  titulo: { fontFamily: fuentes.titulo, fontSize: 22, color: colores.pizarra },
+  tarjeta: { gap: 12, padding: 18 },
+  parrafo: { fontFamily: fuentes.texto, fontSize: 15, lineHeight: 22, color: colores.textoSuave },
+  fecha: { fontFamily: fuentes.textoMedio, fontSize: 13, color: colores.gris },
+  estado: { flex: 0, paddingVertical: 24 },
+  qr: { alignItems: "center", gap: 12 },
+  qrMarco: { padding: 14, backgroundColor: colores.blanco, borderRadius: 20 },
+  codigo: { fontFamily: fuentes.textoNegrita, fontSize: 16, letterSpacing: 1, color: colores.pizarra },
 });
