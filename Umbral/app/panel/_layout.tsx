@@ -36,7 +36,7 @@ export default function PanelLayout() {
     sesion.estado === "activa" &&
     sesion.usuario.rol === "comercio"
   ) {
-    return <Stack />;
+    return <Stack screenOptions={{ headerShown: false }} />;
   }
 
   return (

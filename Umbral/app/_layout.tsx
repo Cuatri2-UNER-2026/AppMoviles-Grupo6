@@ -18,8 +18,6 @@ export default function RootLayout() {
   if (!fuentesListas && !errorFuentes) return null;
 
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-    </Stack>
+    <Stack screenOptions={{ headerShown: false }}/>
   );
 }
