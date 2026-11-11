@@ -1,365 +1,138 @@
-
-import React, { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-} from "react-native";
-import { useRouter } from "expo-router";
+  Boton,
+  BotonRedondo,
+  Campo,
+  EstadoCarga,
+  EstadoError,
+  EstadoVacio,
+  Estrellas,
+  FondoDegradado,
+  TarjetaVidrio,
+} from "../../src/componentes";
+import { useCarga } from "../../src/hooks/useCarga";
 import { resenasService } from "../../src/servicios/resenas";
+import { colores, fuentes } from "../../src/tema";
 import type { Resena } from "../../src/tipos";
+import { fechaCorta } from "../../src/utils/fechas";
 
 export default function ResenasScreen() {
-  const router = useRouter();
-
-  const [resenas, setResenas] = useState<Resena[]>([]);
+  const insets = useSafeAreaInsets();
+  const { datos, setDatos, cargando, refrescando, error, reintentar, refrescar } = useCarga(
+    () => resenasService.obtenerMisResenas(),
+    [],
+  );
   const [respuestas, setRespuestas] = useState<Record<string, string>>({});
-  const [cargando, setCargando] = useState(true);
-  const [actualizando, setActualizando] = useState(false);
   const [enviando, setEnviando] = useState<string | null>(null);
-  const [error, setError] = useState("");
 
-  const cargarResenas = useCallback(async () => {
-    try {
-      setError("");
-      const datos = await resenasService.obtenerMisResenas();
-      setResenas(datos);
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "No se pudieron cargar las reseñas."
-      );
-    } finally {
-      setCargando(false);
-      setActualizando(false);
-    }
-  }, []);
+  // De la más nueva a la más vieja.
+  const resenas = [...(datos ?? [])].sort((a, b) => Date.parse(b.creadaEn) - Date.parse(a.creadaEn));
+  const sinResponder = resenas.filter((r) => !r.respuesta).length;
 
-  useEffect(() => {
-    cargarResenas();
-  }, [cargarResenas]);
-
-  const actualizar = () => {
-    setActualizando(true);
-    cargarResenas();
-  };
-
-  const enviarRespuesta = async (resena: Resena) => {
-    const respuesta = (respuestas[resena.id] || "").trim();
-
-    if (!respuesta) {
+  async function responder(resena: Resena) {
+    const texto = (respuestas[resena.id] ?? "").trim();
+    if (!texto) {
       Alert.alert("Respuesta vacía", "Escribí una respuesta antes de enviarla.");
       return;
     }
-
     try {
       setEnviando(resena.id);
-
-      const actualizada = await resenasService.responder(
-        resena.id,
-        respuesta
-      );
-
-      setResenas((anteriores) =>
-        anteriores.map((item) =>
-          item.id === resena.id ? actualizada : item
-        )
-      );
-
-      setRespuestas((anteriores) => ({
-        ...anteriores,
-        [resena.id]: "",
-      }));
-
-      Alert.alert("Respuesta enviada", "Tu respuesta se publicó correctamente.");
+      const actualizada = await resenasService.responder(resena.id, texto);
+      setDatos((prev) => (prev ?? []).map((r) => (r.id === resena.id ? actualizada : r)));
+      setRespuestas((prev) => ({ ...prev, [resena.id]: "" }));
     } catch (e) {
-      Alert.alert(
-        "No se pudo responder",
-        e instanceof Error ? e.message : "Ocurrió un error."
-      );
+      Alert.alert("No se pudo responder", e instanceof Error ? e.message : "Probá de nuevo.");
     } finally {
       setEnviando(null);
     }
-  };
-
-  const formatoFecha = (fecha: string) =>
-    new Date(fecha).toLocaleDateString("es-AR");
-
-  if (cargando) {
-    return (
-      <View style={styles.centrado}>
-        <ActivityIndicator size="large" color="#6C63FF" />
-        <Text style={styles.textoCargando}>Cargando reseñas...</Text>
-      </View>
-    );
   }
 
   return (
-    <ScrollView
-      style={styles.contenedor}
-      contentContainerStyle={styles.contenido}
-      refreshControl={
-        <RefreshControl
-          refreshing={actualizando}
-          onRefresh={actualizar}
-        />
-      }
-    >
-      <TouchableOpacity
-        style={styles.volver}
-        onPress={() => router.back()}
+    <FondoDegradado colores={[colores.salvia, colores.niebla, colores.niebla, colores.lila]}>
+      <ScrollView
+        contentContainerStyle={[estilos.contenido, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 40 }]}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={colores.indigo} />}
       >
-        <Text style={styles.volverTexto}>‹ Volver al panel</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.titulo}>Reseñas de mi comercio</Text>
-      <Text style={styles.subtitulo}>
-        Consultá las opiniones y respondé a tus clientes.
-      </Text>
-
-      {error ? (
-        <View style={styles.errorCaja}>
-          <Text style={styles.errorTexto}>{error}</Text>
-          <TouchableOpacity onPress={actualizar}>
-            <Text style={styles.reintentar}>Volver a intentar</Text>
-          </TouchableOpacity>
+        <View style={{ alignSelf: "flex-start" }}>
+          <BotonRedondo />
         </View>
-      ) : resenas.length === 0 ? (
-        <View style={styles.vacio}>
-          <Text style={styles.vacioTitulo}>Todavía no hay reseñas</Text>
-          <Text style={styles.vacioTexto}>
-            Cuando tus clientes dejen opiniones, aparecerán acá.
+
+        <View>
+          <Text style={estilos.titulo}>Reseñas</Text>
+          <Text style={estilos.subtitulo}>
+            {datos && datos.length > 0
+              ? `${sinResponder} sin responder · podés responder una vez a cada una.`
+              : "Las opiniones de tus clientes aparecen acá."}
           </Text>
         </View>
-      ) : (
-        <>
-          <Text style={styles.contador}>
-            {resenas.length} {resenas.length === 1 ? "reseña" : "reseñas"}
-          </Text>
 
-          {resenas.map((resena) => (
-            <View key={resena.id} style={styles.tarjeta}>
-              <View style={styles.encabezado}>
-                <Text style={styles.estrellas}>
-                  {"★".repeat(resena.estrellas)}
-                  {"☆".repeat(5 - resena.estrellas)}
-                </Text>
-                <Text style={styles.fecha}>
-                  {formatoFecha(resena.creadaEn)}
-                </Text>
-              </View>
+        {cargando && <EstadoCarga texto="Cargando reseñas…" style={estilos.estado} />}
+        {!cargando && error && (
+          <EstadoError titulo="No pudimos cargar las reseñas" texto={error} onReintentar={reintentar} style={estilos.estado} />
+        )}
+        {!cargando && !error && resenas.length === 0 && (
+          <EstadoVacio
+            icono="chatbubble-outline"
+            titulo="Todavía no hay reseñas"
+            texto="Cuando tus clientes dejen opiniones, aparecen acá."
+            style={estilos.estado}
+          />
+        )}
 
-              <Text style={styles.comentario}>
-                {resena.comentario}
-              </Text>
-
-              {resena.respuesta ? (
-                <View style={styles.respuestaExistente}>
-                  <Text style={styles.respuestaTitulo}>
-                    Tu respuesta
-                  </Text>
-                  <Text style={styles.respuestaTexto}>
-                    {resena.respuesta}
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.formulario}>
-                  <Text style={styles.etiqueta}>Responder reseña</Text>
-
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Escribí tu respuesta..."
-                    placeholderTextColor="#999"
-                    multiline
-                    value={respuestas[resena.id] || ""}
-                    onChangeText={(texto) =>
-                      setRespuestas((anteriores) => ({
-                        ...anteriores,
-                        [resena.id]: texto,
-                      }))
-                    }
-                  />
-
-                  <TouchableOpacity
-                    style={[
-                      styles.botonResponder,
-                      enviando === resena.id && styles.botonDeshabilitado,
-                    ]}
-                    disabled={enviando !== null}
-                    onPress={() => enviarRespuesta(resena)}
-                  >
-                    {enviando === resena.id ? (
-                      <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.botonTexto}>
-                        Enviar respuesta
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              )}
+        {resenas.map((r) => (
+          <TarjetaVidrio key={r.id} style={estilos.tarjeta}>
+            <View style={estilos.filaTop}>
+              <Estrellas cantidad={r.estrellas} tamano={18} />
+              <Text style={estilos.fecha}>{fechaCorta(r.creadaEn)}</Text>
             </View>
-          ))}
-        </>
-      )}
-    </ScrollView>
+            <Text style={estilos.comentario}>{r.comentario}</Text>
+
+            {r.respuesta ? (
+              <View style={estilos.respuesta}>
+                <Text style={estilos.tituloRespuesta}>Tu respuesta</Text>
+                <Text style={estilos.comentario}>{r.respuesta}</Text>
+              </View>
+            ) : (
+              <View style={{ gap: 10 }}>
+                <Campo
+                  etiqueta="Responder"
+                  valor={respuestas[r.id] ?? ""}
+                  alCambiar={(t) => setRespuestas((prev) => ({ ...prev, [r.id]: t }))}
+                  placeholder="Escribí tu respuesta…"
+                  autoCapitalize="sentences"
+                  multiline
+                  maxLength={500}
+                />
+                <Boton
+                  texto="Enviar respuesta"
+                  compacto
+                  cargando={enviando === r.id}
+                  deshabilitado={enviando !== null}
+                  onPress={() => responder(r)}
+                />
+              </View>
+            )}
+          </TarjetaVidrio>
+        ))}
+      </ScrollView>
+    </FondoDegradado>
   );
 }
 
-const styles = StyleSheet.create({
-  contenedor: {
-    flex: 1,
-    backgroundColor: "#F7F7FB",
-  },
-  contenido: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  centrado: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F7F7FB",
-  },
-  textoCargando: {
-    marginTop: 12,
-    color: "#666",
-  },
-  volver: {
-    marginBottom: 20,
-  },
-  volverTexto: {
-    color: "#6C63FF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  titulo: {
-    fontSize: 25,
-    fontWeight: "bold",
-    color: "#29263D",
-  },
-  subtitulo: {
-    fontSize: 14,
-    color: "#777",
-    marginTop: 6,
-    marginBottom: 22,
-  },
-  contador: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 12,
-  },
-  tarjeta: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#ECEAF5",
-  },
-  encabezado: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  estrellas: {
-    color: "#F2B544",
-    fontSize: 20,
-    letterSpacing: 2,
-  },
-  fecha: {
-    color: "#888",
-    fontSize: 12,
-  },
-  comentario: {
-    color: "#333",
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  respuestaExistente: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: "#F0EFFA",
-    borderRadius: 10,
-  },
-  respuestaTitulo: {
-    color: "#6C63FF",
-    fontWeight: "bold",
-    marginBottom: 6,
-  },
-  respuestaTexto: {
-    color: "#444",
-    lineHeight: 21,
-  },
-  formulario: {
-    marginTop: 18,
-  },
-  etiqueta: {
-    color: "#555",
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  input: {
-    minHeight: 90,
-    borderWidth: 1,
-    borderColor: "#DDD9EA",
-    borderRadius: 10,
-    padding: 12,
-    textAlignVertical: "top",
-    color: "#333",
-    backgroundColor: "#FFFFFF",
-  },
-  botonResponder: {
-    backgroundColor: "#6C63FF",
-    padding: 13,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  botonDeshabilitado: {
-    opacity: 0.6,
-  },
-  botonTexto: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-  },
-  vacio: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
-  },
-  vacioTitulo: {
-    fontSize: 17,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  vacioTexto: {
-    color: "#777",
-    textAlign: "center",
-    marginTop: 8,
-    lineHeight: 21,
-  },
-  errorCaja: {
-    backgroundColor: "#FCECEC",
-    padding: 16,
-    borderRadius: 12,
-  },
-  errorTexto: {
-    color: "#B42318",
-  },
-  reintentar: {
-    color: "#6C63FF",
-    fontWeight: "bold",
-    marginTop: 12,
-  },
+const estilos = StyleSheet.create({
+  contenido: { paddingHorizontal: 20, gap: 14 },
+  titulo: { fontFamily: fuentes.titulo, fontSize: 34, color: colores.pizarra, letterSpacing: -0.5 },
+  subtitulo: { fontFamily: fuentes.texto, fontSize: 14, color: colores.gris, marginTop: 2 },
+  estado: { flex: 0, paddingVertical: 32 },
+  tarjeta: { gap: 10, padding: 16 },
+  filaTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  fecha: { fontFamily: fuentes.texto, fontSize: 12, color: colores.gris },
+  comentario: { fontFamily: fuentes.texto, fontSize: 15, lineHeight: 22, color: colores.pizarra },
+  respuesta: { backgroundColor: colores.niebla, borderRadius: 18, padding: 12, gap: 4 },
+  tituloRespuesta: { fontFamily: fuentes.textoNegrita, fontSize: 12, color: colores.indigo },
 });

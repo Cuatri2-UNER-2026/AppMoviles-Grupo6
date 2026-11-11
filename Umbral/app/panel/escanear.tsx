@@ -1,228 +1,133 @@
+import { CameraView, useCameraPermissions } from "expo-camera";
+import * as Haptics from "expo-haptics";
+import * as LocalAuthentication from "expo-local-authentication";
+import { useEffect, useState, type ReactNode } from "react";
+import { Alert, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Boton, BotonRedondo, EstadoCarga, EstadoVacio, FondoDegradado } from "../../src/componentes";
+import { promocionesService } from "../../src/servicios/promociones";
+import { colores, fuentes } from "../../src/tema";
 
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as Haptics from 'expo-haptics';
-import * as LocalAuthentication from 'expo-local-authentication';
-import { useRouter } from 'expo-router';
-import { promocionesService } from '../../src/servicios/promociones';
+/** Fondo común de las pantallas previas a la cámara (permiso y huella). */
+function Fondo({ children }: { children: ReactNode }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <FondoDegradado colores={[colores.salvia, colores.niebla, colores.niebla, colores.lila]}>
+      {children}
+      <BotonRedondo style={{ position: "absolute", left: 20, top: insets.top + 8 }} />
+    </FondoDegradado>
+  );
+}
 
 export default function EscanearScreen() {
-  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [autenticado, setAutenticado] = useState(false);
   const [escaneado, setEscaneado] = useState(false);
+
+  // Pedimos huella o rostro antes de abrir la cámara. Sin biometría, se entra directo.
+  async function verificarBiometria() {
+    try {
+      const hayHardware = await LocalAuthentication.hasHardwareAsync();
+      const hayHuella = await LocalAuthentication.isEnrolledAsync();
+
+      if (hayHardware && hayHuella) {
+        const resultado = await LocalAuthentication.authenticateAsync({
+          promptMessage: "Confirmá tu identidad para escanear el QR",
+          fallbackLabel: "Usar el PIN del teléfono",
+        });
+        if (resultado.success) setAutenticado(true);
+        else Alert.alert("No pudimos verificarte", "Probá de nuevo para abrir la cámara.");
+      } else {
+        setAutenticado(true);
+      }
+    } catch {
+      setAutenticado(true);
+    }
+  }
 
   useEffect(() => {
     verificarBiometria();
   }, []);
 
-  const verificarBiometria = async () => {
-    try {
-      const tieneBiometria = await LocalAuthentication.hasHardwareAsync();
-      const estaEnrolado = await LocalAuthentication.isEnrolledAsync();
-
-      if (tieneBiometria && estaEnrolado) {
-        const resultado = await LocalAuthentication.authenticateAsync({
-          promptMessage: 'Confirmá tu identidad para escanear el QR',
-          fallbackLabel: 'Usar contraseña del dispositivo',
-        });
-
-        if (resultado.success) {
-          setAutenticado(true);
-        } else {
-          Alert.alert(
-            'Autenticación fallida',
-            'No se pudo verificar la identidad.'
-          );
-        }
-      } else {
-        setAutenticado(true);
-      }
-    } catch (e) {
-      setAutenticado(true);
-    }
-  };
-
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+  async function alEscanear({ data }: { data: string }) {
     setEscaneado(true);
-
     try {
       await promocionesService.validarCodigoQR(data);
-
-      await Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success
-      );
-
-      Alert.alert(
-        '¡Promoción Validada!',
-        'El código QR fue aceptado con éxito.',
-        [{ text: 'Aceptar', onPress: () => setEscaneado(false) }]
-      );
-    } catch (e: any) {
-      await Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Error
-      );
-
-      Alert.alert(
-        'Error de Validación',
-        e.message || 'Código inválido o expirado.',
-        [{ text: 'Reintentar', onPress: () => setEscaneado(false) }]
-      );
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("¡Promoción validada!", "El código se registró como usado.", [
+        { text: "Aceptar", onPress: () => setEscaneado(false) },
+      ]);
+    } catch (e) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("No se pudo validar", e instanceof Error ? e.message : "Código inválido o vencido.", [
+        { text: "Reintentar", onPress: () => setEscaneado(false) },
+      ]);
     }
-  };
+  }
 
   if (!permission) {
-    return <View style={styles.center} />;
+    return (
+      <Fondo>
+        <EstadoCarga texto="" />
+      </Fondo>
+    );
   }
 
   if (!permission.granted) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.textoInfo}>
-          Se necesitan permisos de cámara para escanear el QR.
-        </Text>
-
-        <TouchableOpacity
-          style={styles.boton}
-          onPress={requestPermission}
-        >
-          <Text style={styles.botonTexto}>Conceder permiso</Text>
-        </TouchableOpacity>
-      </View>
+      <Fondo>
+        <EstadoVacio
+          icono="camera-outline"
+          titulo="Necesitamos la cámara"
+          texto="Es para leer el código QR que te muestra el cliente."
+          accion={{ etiqueta: "Conceder permiso", onPress: () => requestPermission() }}
+        />
+      </Fondo>
     );
   }
 
   if (!autenticado) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.textoInfo}>
-          Esperando autenticación de seguridad...
-        </Text>
-
-        <TouchableOpacity
-          style={styles.boton}
-          onPress={verificarBiometria}
-        >
-          <Text style={styles.botonTexto}>
-            Reintentar autenticación
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <Fondo>
+        <EstadoVacio
+          icono="finger-print-outline"
+          titulo="Confirmá que sos vos"
+          texto="Te pedimos la huella, el rostro o el PIN del teléfono antes de abrir la cámara."
+          accion={{ etiqueta: "Reintentar", onPress: verificarBiometria }}
+        />
+      </Fondo>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={estilos.pantalla}>
       <CameraView
-        style={styles.camera}
+        style={StyleSheet.absoluteFill}
         facing="back"
-        onBarcodeScanned={
-          escaneado ? undefined : handleBarCodeScanned
-        }
-        barcodeScannerSettings={{
-          barcodeTypes: ['qr'],
-        }}
+        onBarcodeScanned={escaneado ? undefined : alEscanear}
+        barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
       />
 
-      <TouchableOpacity
-        style={styles.botonVolver}
-        onPress={() => router.back()}
-      >
-        <Text style={styles.botonVolverTexto}>← Cancelar</Text>
-      </TouchableOpacity>
+      <BotonRedondo
+        icono="close"
+        accessibilityLabel="Cancelar"
+        style={{ position: "absolute", left: 20, top: insets.top + 8 }}
+      />
 
-      <View style={styles.overlay}>
-        <Text style={styles.overlayTexto}>
-          Apuntá la cámara al código QR del cliente
-        </Text>
+      <View style={[estilos.pie, { bottom: insets.bottom + 24 }]}>
+        <View style={estilos.cartel}>
+          <Text style={estilos.textoCartel}>Apuntá la cámara al código QR del cliente</Text>
+        </View>
+        {escaneado && <Boton texto="Escanear de nuevo" variante="blanco" onPress={() => setEscaneado(false)} />}
       </View>
-
-      {escaneado && (
-        <TouchableOpacity
-          style={styles.botonReescanear}
-          onPress={() => setEscaneado(false)}
-        >
-          <Text style={styles.botonTexto}>Escanear de nuevo</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  camera: {
-    flex: 1,
-    width: '100%',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  textoInfo: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 16,
-    color: '#333333',
-  },
-  overlay: {
-    position: 'absolute',
-    bottom: 40,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  overlayTexto: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  botonVolver: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  botonVolverTexto: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  boton: {
-    backgroundColor: '#1A1D20',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  botonReescanear: {
-    position: 'absolute',
-    bottom: 100,
-    alignSelf: 'center',
-    backgroundColor: '#1A1D20',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  botonTexto: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
+const estilos = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: colores.negro },
+  pie: { position: "absolute", left: 20, right: 20, gap: 12 },
+  cartel: { backgroundColor: colores.velo, borderRadius: 18, padding: 16, alignItems: "center" },
+  textoCartel: { fontFamily: fuentes.textoMedio, fontSize: 14, color: colores.blanco, textAlign: "center" },
 });

@@ -1,176 +1,163 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-import { promocionesService, Promocion } from '../../src/servicios/promociones';
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Boton, FondoDegradado } from "../../src/componentes";
+import { useSesion } from "../../src/hooks/useSesion";
+import { obtenerComercio } from "../../src/servicios/comercios";
+import { promocionesService, type Promocion } from "../../src/servicios/promociones";
+import { resenasService } from "../../src/servicios/resenas";
+import { colores, fuentes } from "../../src/tema";
+
+const estaVigente = (p: Promocion) => p.activa && Date.parse(p.hasta) >= Date.now();
 
 export default function PanelComercioScreen() {
-  const router = useRouter();
-  const [promos, setPromos] = useState<Promocion[]>([]);
-  const [cargando, setCargando] = useState(true);
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const sesion = useSesion();
+  const comercioId = sesion.estado === "activa" ? sesion.usuario.comercioId : null;
 
-  useEffect(() => {
-    cargarDatosPanel();
-  }, []);
+  const [nombre, setNombre] = useState<string | null>(null);
+  const [promos, setPromos] = useState<Promocion[] | null>(null);
+  const [sinResponder, setSinResponder] = useState<number | null>(null);
 
-  const cargarDatosPanel = async () => {
-  try {
-    const data = await promocionesService.obtenerMisPromociones();
-    setPromos(data);
-  } catch (e) {
-    console.error("Error al cargar promociones del comercio:", e);
-  } finally {
-    setCargando(false);
-  }
-};
-
-  const handleEliminarPromo = (id: string) => {
-  Alert.alert(
-    'Confirmar baja',
-    '¿Estás seguro de que querés dar de baja esta promoción?',
-    [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Dar de baja',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await promocionesService.eliminarPromocion(id);
-
-            setPromos(prev =>
-              prev.map(p =>
-                p.id === id ? { ...p, activa: false } : p
-              )
-            );
-
-          } catch (e: any) {
-            Alert.alert(
-              'Error',
-              e.message || 'No se pudo dar de baja la promoción'
-            );
-          }
-        },
-      },
-    ]
+  // Se recarga cada vez que la pantalla vuelve a estar a la vista (después de validar, responder o editar).
+  useFocusEffect(
+    useCallback(() => {
+      if (!comercioId) return;
+      Promise.allSettled([
+        obtenerComercio(comercioId),
+        promocionesService.obtenerMisPromociones(),
+        resenasService.obtenerMisResenas(),
+      ]).then(([c, p, r]) => {
+        if (c.status === "fulfilled") setNombre(c.value.nombre);
+        if (p.status === "fulfilled") setPromos(p.value);
+        if (r.status === "fulfilled") setSinResponder(r.value.filter((x) => !x.respuesta).length);
+      });
+    }, [comercioId]),
   );
-};
 
-  if (cargando) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1A1D20" />
-      </View>
-    );
-  }
+  // Promo vigente con más usos; si no hay ninguna vigente, el total de usos.
+  const vigentes = (promos ?? []).filter(estaVigente);
+  const destacada = [...vigentes].sort((a, b) => b.usos - a.usos)[0];
+  const usos = destacada ? destacada.usos : (promos ?? []).reduce((suma, p) => suma + p.usos, 0);
+  const etiquetaUsos = destacada ? `usos de “${destacada.titulo}”` : "usos de tus promociones";
+
+  const externo = Math.min(width * 0.6, 250);
+  const medio = externo * 0.81;
+  const interno = externo * 0.62;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.titulo}>Panel de Comercio</Text>
-      <Text style={styles.subtitulo}>Gestión de promociones y escaneo de clientes</Text>
-      <TouchableOpacity 
-          style={styles.botonNueva} 
-          onPress={() => router.push("/panel/nueva" as any)}
-          >      
-        <Text style={styles.botonNuevaTexto}>＋ Nueva promoción</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.botonEscanear} onPress={() => router.push('/panel/escanear' as any)}>
-        <Text style={styles.botonEscanearIcono}>📷</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.botonEscanearTitulo}>Escanear Código QR</Text>
-          <Text style={styles.botonEscanearSub}>Validar descuento de cliente en caja</Text>
-        </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.botonResenas}
-        onPress={() => router.push("/panel/resenas" as any)}
+    <FondoDegradado
+      colores={[colores.salvia, colores.niebla, colores.niebla, colores.durazno]}
+      locations={[0, 0.3, 0.7, 1]}
+    >
+      <ScrollView
+        contentContainerStyle={[estilos.contenido, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }]}
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.botonResenasIcono}>⭐</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.botonResenasTitulo}>Reseñas de clientes</Text>
-          <Text style={styles.botonResenasSub}>
-            Consultar opiniones y responder a tus clientes
-          </Text>
+        <View>
+          <Text style={estilos.etiqueta}>Mi local</Text>
+          <Text style={estilos.titulo}>Hola, {nombre ?? "tu comercio"}</Text>
         </View>
-      </TouchableOpacity>
 
-      <Text style={styles.seccionTitulo}>Promociones Activas ({promos.length})</Text>
-
-      <View style={styles.lista}>
-        {promos.length === 0 ? (
-          <Text style={styles.vacio}>No tenés promociones cargadas.</Text>
-        ) : (
-          promos.map((item) => (
-            <View key={item.id} style={styles.card}>
-
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardDescuento}>
-                  {item.descuento !== null ? `${item.descuento}%` : "Promoción"}
-                </Text>
-
-              <View style={styles.acciones}>
-                  {item.activa && new Date(item.hasta) >= new Date() && (
-                    <>
-                      <TouchableOpacity
-                          onPress={() =>
-                            router.push(`/panel/editar/${item.id}` as any)
-                          }
-                        >
-                          <Text style={styles.botonEditar}>Editar</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={() => handleEliminarPromo(item.id)}
-                      >
-                        <Text style={styles.botonEliminar}>Dar de baja</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                </View>
-              </View>
-
-              <Text style={styles.cardTitulo}>{item.titulo}</Text>
-              <Text style={styles.cardUsos}>
-                Usos: {item.usos}
-              </Text>
-              <Text style={styles.cardEstado}>
-                {item.activa ? "Activa" : "Dada de baja"}
-              </Text>
+        {/* Círculo de escaneo: la pantalla de escanear pide la huella antes de abrir la cámara. */}
+        <View style={estilos.zonaCirculo}>
+          <View style={[estilos.anillo, { width: externo, height: externo, borderRadius: externo / 2, backgroundColor: "rgba(124,140,224,0.12)" }]}>
+            <View style={[estilos.anillo, { width: medio, height: medio, borderRadius: medio / 2, backgroundColor: "rgba(124,140,224,0.2)" }]}>
+              <Pressable
+                onPress={() => router.push("/panel/escanear" as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Escanear cliente"
+                style={({ pressed }) => [
+                  estilos.anillo,
+                  { width: interno, height: interno, borderRadius: interno / 2, backgroundColor: "rgba(124,140,224,0.28)" },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Text style={estilos.textoCirculo}>Escanear{"\n"}cliente</Text>
+              </Pressable>
             </View>
-          ))
-        )}
-      </View>
-    </ScrollView>
+          </View>
+        </View>
+
+        <Text style={estilos.ayuda}>Tocá el círculo. Te pedimos la huella para entrar.</Text>
+
+        <View style={estilos.filaTarjetas}>
+          <Pressable
+            style={[estilos.tarjeta, estilos.formaUno]}
+            onPress={() => router.push("/panel/promociones" as any)}
+            accessibilityRole="button"
+          >
+            <Text style={estilos.numero}>{promos === null ? "–" : usos}</Text>
+            <Text style={estilos.descripcion} numberOfLines={3}>
+              {etiquetaUsos}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[estilos.tarjeta, estilos.formaDos]}
+            onPress={() => router.push("/panel/resenas" as any)}
+            accessibilityRole="button"
+          >
+            <Text style={estilos.numero}>{sinResponder === null ? "–" : sinResponder}</Text>
+            <Text style={estilos.descripcion} numberOfLines={3}>
+              {sinResponder === 1 ? "reseña sin responder" : "reseñas sin responder"}
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={estilos.filaBotones}>
+          <Boton
+            texto="Mis promociones"
+            variante="claro"
+            style={estilos.boton}
+            onPress={() => router.push("/panel/promociones" as any)}
+          />
+          <Boton
+            texto="Mi ficha"
+            variante="claro"
+            style={estilos.boton}
+            deshabilitado={!comercioId}
+            onPress={() => router.push({ pathname: "/comercio/[id]", params: { id: comercioId! } })}
+          />
+        </View>
+      </ScrollView>
+    </FondoDegradado>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#F8F9FA', flexGrow: 1, paddingTop: 50 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  titulo: { fontSize: 30, fontWeight: 'bold', color: '#1A1D20' },
-  subtitulo: { fontSize: 14, color: '#6C757D', marginBottom: 20 },
-  botonEscanear: { flexDirection: 'row', backgroundColor: '#1A1D20', padding: 20, borderRadius: 16, alignItems: 'center', marginBottom: 24, gap: 16 },
-  botonEscanearIcono: { fontSize: 30 },
-  botonEscanearTitulo: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
-  botonEscanearSub: { color: '#ADB5BD', fontSize: 13, marginTop: 2 },
-  seccionTitulo: { fontSize: 18, fontWeight: 'bold', color: '#1A1D20', marginBottom: 12 },
-  lista: { gap: 12 },
-  vacio: { color: '#6C757D', fontStyle: 'italic' },
-  card: { backgroundColor: '#FFFFFF', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E9ECEF' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardDescuento: { fontSize: 22, fontWeight: 'bold', color: '#1A1D20' },
-  botonEliminar: { color: '#D9534F', fontSize: 13, fontWeight: '600' },
-  cardTitulo: { fontSize: 15, color: '#495057', marginTop: 4 },
-  cardUsos: { fontSize: 13, color: "#6C757D", marginTop: 6 },
-  cardEstado: {fontSize: 12, color: "#6C757D", marginTop: 4 },
-  botonNueva: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#1A1D20", padding: 15, borderRadius: 12, alignItems: "center",
-  marginBottom: 20 },
-  botonNuevaTexto: { color: "#1A1D20", fontSize: 15, fontWeight: "bold" },
-  acciones: { flexDirection: "row", alignItems: "center", gap: 16 },
-  botonEditar: { color: "#2878B5", fontSize: 13, fontWeight: "600" },
-  botonResenas: { flexDirection: "row", backgroundColor: "#FFFFFF", padding: 20, borderRadius: 16, alignItems: "center", marginBottom: 24, gap: 16, borderWidth: 1, borderColor: "#E9ECEF" },
-  botonResenasIcono: { fontSize: 30 },
-  botonResenasTitulo: { color: "#1A1D20", fontSize: 18, fontWeight: "bold" },
-  botonResenasSub: { color: "#6C757D", fontSize: 13, marginTop: 2 },
+const estilos = StyleSheet.create({
+  contenido: { paddingHorizontal: 16, gap: 16 },
+  etiqueta: { fontFamily: fuentes.textoMedio, fontSize: 14, color: colores.gris },
+  titulo: { fontFamily: fuentes.titulo, fontSize: 30, lineHeight: 38, color: colores.pizarra, letterSpacing: -0.5 },
 
+  zonaCirculo: { alignItems: "center", marginVertical: 8 },
+  anillo: { alignItems: "center", justifyContent: "center" },
+  textoCirculo: {
+    fontFamily: fuentes.titulo,
+    fontSize: 24,
+    lineHeight: 30,
+    color: colores.pizarra,
+    textAlign: "center",
+  },
+  ayuda: { fontFamily: fuentes.texto, fontSize: 14, color: colores.gris },
+
+  filaTarjetas: { flexDirection: "row", gap: 12 },
+  tarjeta: {
+    flex: 1,
+    minHeight: 130,
+    padding: 18,
+    gap: 4,
+    backgroundColor: colores.vidrioFuerte,
+    borderWidth: 1,
+    borderColor: colores.bordeVidrio,
+  },
+  formaUno: { borderTopLeftRadius: 32, borderTopRightRadius: 56, borderBottomRightRadius: 56, borderBottomLeftRadius: 32 },
+  formaDos: { borderTopLeftRadius: 56, borderTopRightRadius: 32, borderBottomRightRadius: 32, borderBottomLeftRadius: 56 },
+  numero: { fontFamily: fuentes.titulo, fontSize: 44, lineHeight: 52, color: colores.pizarra, letterSpacing: -1 },
+  descripcion: { fontFamily: fuentes.texto, fontSize: 13, lineHeight: 18, color: colores.gris },
+
+  filaBotones: { flexDirection: "row", gap: 12 },
+  boton: { flex: 1 },
 });
