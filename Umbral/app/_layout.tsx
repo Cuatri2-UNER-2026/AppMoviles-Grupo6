@@ -11,29 +11,29 @@ import { BannerSinConexion } from "../src/componentes/estados/BannerSinConexion"
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  useAvisos();
-  useSincronizarResenas();
-  const [fuentesListas, errorFuentes] = useFonts(archivosDeFuentes);
-  const [intro, setIntro] = useState(true);
+    useAvisos();
+    useSincronizarResenas();
+    const [fuentesListas, errorFuentes] = useFonts(archivosDeFuentes);
+    const [intro, setIntro] = useState(true);
 
-  useEffect(() => {
-    if (fuentesListas || errorFuentes) SplashScreen.hideAsync();
-  }, [fuentesListas, errorFuentes]);
+    useEffect(() => {
+        if (fuentesListas || errorFuentes) SplashScreen.hideAsync();
+    }, [fuentesListas, errorFuentes]);
 
-  if (!fuentesListas && !errorFuentes) return null;
+    if (!fuentesListas && !errorFuentes) return null;
 
-  return (
-    <>
-      <Stack screenOptions={{ headerShown: false }} />
-      <BannerSinConexion />
-      {intro && (
-        <Introduccion
-          alNavegar={(destino) => {
-            if (destino === "login") router.push("/login");
-          }}
-          alCerrar={() => setIntro(false)}
-        />
-      )}
-    </>
-  );
+    return (
+        <>
+            <Stack screenOptions={{ headerShown: false }} />
+            <BannerSinConexion />
+            {intro && (
+                <Introduccion
+                    alNavegar={(destino) => {
+                        if (destino === "login") router.push("/login");
+                    }}
+                    alCerrar={() => setIntro(false)}
+                />
+            )}
+        </>
+    );
 }

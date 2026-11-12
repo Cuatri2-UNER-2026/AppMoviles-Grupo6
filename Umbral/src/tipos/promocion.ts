@@ -1,1 +1,1 @@
-export type { Promocion } from './index';
+export type { Promocion } from "./index";

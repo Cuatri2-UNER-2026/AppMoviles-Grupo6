@@ -19,7 +19,7 @@ export const colores = {
     vidrioFuerte: "rgba(255,255,255,0.85)",
     bordeVidrio: "rgba(255,255,255,0.9)",
     velo: "rgba(0,0,0,0.65)", // texto/botones sobre la cámara
-    estrella: "#E3A72F", 
+    estrella: "#E3A72F",
     duraznoClaro: "#FCE8DE",
     lilaClaro: "#E8E4F8",
 } as const;
