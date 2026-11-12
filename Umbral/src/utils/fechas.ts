@@ -20,3 +20,14 @@ export function fechaParaInput(valor: string): string {
 
 export const inicioDelDia = (aaaammdd: string) => `${aaaammdd}T00:00:00-03:00`;
 export const finDelDia = (aaaammdd: string) => `${aaaammdd}T23:59:59-03:00`;
+
+/** "hace unos minutos", "hace 3 horas", "hace 2 días"… */
+export function hace(desdeMs: number, ahoraMs: number = Date.now()): string {
+  const min = Math.max(0, Math.round((ahoraMs - desdeMs) / 60_000));
+  if (min < 2) return "hace un momento";
+  if (min < 60) return `hace ${min} minutos`;
+  const horas = Math.round(min / 60);
+  if (horas < 24) return `hace ${horas} ${horas === 1 ? "hora" : "horas"}`;
+  const dias = Math.round(horas / 24);
+  return `hace ${dias} ${dias === 1 ? "día" : "días"}`;
+}

@@ -12,15 +12,20 @@ export { Segmentos } from "./ui/Segmentos";
 export { TarjetaVidrio } from "./ui/TarjetaVidrio";
 export { TarjetaAccion } from "./ui/TarjetaAccion";
 // estados
+export { AvisoDatosViejos } from "./estados/AvisoDatosViejos";
 export { BannerSinConexion } from "./estados/BannerSinConexion";
 export { EstadoCarga, EstadoError, EstadoVacio } from "./estados/Estados";
 // comercio
 export { AccionesComercio } from "./comercio/AccionesComercio";
 export { Estrellas } from "./comercio/Estrellas";
 export { FiltroRubros } from "./comercio/FiltroRubros";
+export { FormularioResena } from "./comercio/FormularioResena";
 export { IndicadorApertura } from "./comercio/IndicadorApertura";
 export { Puntaje } from "./comercio/Puntaje";
+export { SeccionResenas } from "./comercio/SeccionResenas";
+export { SelectorEstrellas } from "./comercio/SelectorEstrellas";
 export { TarjetaComercio } from "./comercio/TarjetaComercio";
+export { TarjetaResena } from "./comercio/TarjetaResena";
 // promo
 export { FormularioPromocion } from "./promo/FormularioPromocion";
 export { TarjetaPromo } from "./promo/TarjetaPromo";
