@@ -79,3 +79,25 @@ export async function leerDirectorio(): Promise<DirectorioGuardado | null> {
   const fecha = await db.getFirstAsync<{ valor: string }>("SELECT valor FROM meta WHERE clave = ?", [CLAVE_FECHA]);
   return { comercios, rubros, actualizadoEn: fecha ? Number(fecha.valor) : null };
 }
+
+/** Una ficha guardada (con sus horarios), para abrirla sin conexión. */
+export async function leerComercio(id: string): Promise<Comercio | null> {
+  const db = await abrirBase();
+  const fila = await db.getFirstAsync<{ datos: string }>("SELECT datos FROM comercios WHERE id = ?", [id]);
+  if (!fila) return null;
+  const horarios = await db.getAllAsync<{ dia: number; abre: string; cierra: string }>(
+    "SELECT dia, abre, cierra FROM horarios WHERE comercio_id = ? ORDER BY dia, abre",
+    [id],
+  );
+  return {
+    ...(JSON.parse(fila.datos) as Omit<Comercio, "horarios">),
+    horarios: horarios.map((h) => ({ dia: h.dia as Horario["dia"], abre: h.abre, cierra: h.cierra })),
+  } as Comercio;
+}
+
+/** Los rubros guardados, ordenados. */
+export async function leerRubros(): Promise<Rubro[]> {
+  const db = await abrirBase();
+  const filas = await db.getAllAsync<{ datos: string }>("SELECT datos FROM rubros ORDER BY orden");
+  return filas.map((f) => JSON.parse(f.datos) as Rubro);
+}

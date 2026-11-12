@@ -91,6 +91,7 @@ export default function DetallePromoScreen() {
   const hasta = Number.isNaN(hastaMs)
     ? "fecha no disponible"
     : new Date(hastaMs).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+  const vencida = !promo.activa || (!Number.isNaN(hastaMs) && hastaMs < Date.now());
 
   return (
     <FondoDegradado colores={FONDO}>
@@ -121,7 +122,8 @@ export default function DetallePromoScreen() {
           <Text style={estilos.fecha}>Válida hasta el {hasta}</Text>
         </TarjetaVidrio>
 
-        {promo.soloApp && (
+        {vencida && <Aviso icono="time-outline" texto="Esta promoción ya no está vigente." />}
+        {promo.soloApp && !vencida && (
           <TarjetaVidrio style={estilos.tarjeta}>
             <SeccionTitulo texto="Tu código" ayuda="Mostralo en el local. Se usa una sola vez." />
 

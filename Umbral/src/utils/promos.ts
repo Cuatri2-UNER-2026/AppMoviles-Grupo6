@@ -28,3 +28,6 @@ export function vigencia(p: Promocion, ahora: number): string {
   if (dias <= 3) return `Vence en ${dias} días`;
   return `Hasta el ${fechaCorta(p.hasta)}`;
 }
+
+export const estaVencida = (p: Promocion, ahora = Date.now()) => Date.parse(p.hasta) < ahora;
+export const estaVigente = (p: Promocion, ahora = Date.now()) => p.activa && Date.parse(p.desde) <= ahora && !estaVencida(p, ahora);

@@ -24,6 +24,7 @@ import { useCarga } from "../../src/hooks/useCarga";
 import { useSesion } from "../../src/hooks/useSesion";
 import { pedir } from "../../src/servicios/cliente";
 import { listarRubros, obtenerComercio } from "../../src/servicios/comercios";
+import { archivoLocal, guardarMediosComercio, mediosGuardados } from "../../src/servicios/archivos";
 import { alternarFavorito } from "../../src/servicios/favoritos";
 import { colores, fuentes } from "../../src/tema";
 import type { Comercio, Promocion, Rubro } from "../../src/tipos";
@@ -31,6 +32,7 @@ import { calcularEstado } from "../../src/utils/abiertoAhora";
 import { abrirInstagram } from "../../src/utils/enlaces";
 import { fechaCorta } from "../../src/utils/fechas";
 import { formatearDuracion } from "../../src/utils/formatear";
+import { estaVigente } from "../../src/utils/promos";
 
 const ALTO_HERO = 300;
 const SEMANA = [1, 2, 3, 4, 5, 6, 0] as const; // lunes primero
@@ -75,12 +77,30 @@ export default function FichaComercio() {
   const [verSemana, setVerSemana] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [reproduciendo, setReproduciendo] = useState(false);
+  const [descarga, setDescarga] = useState<"pendiente" | "guardando" | "guardado">("pendiente");
+
+  // Si las fotos y el video ya están en el teléfono, se muestra como guardado.
+  useEffect(() => {
+    if (comercio) setDescarga(mediosGuardados(comercio) ? "guardado" : "pendiente");
+  }, [comercio]);
+
+  async function guardarParaSinDatos() {
+    if (!comercio) return;
+    setDescarga("guardando");
+    const { fallidos } = await guardarMediosComercio(comercio);
+    if (fallidos > 0) {
+      setDescarga("pendiente");
+      Alert.alert("No pudimos guardar todo", "Revisá tu conexión e intentá de nuevo.");
+    } else {
+      setDescarga("guardado");
+    }
+  }
 
   // Las promos cargan aparte: si fallan, la ficha se ve igual. Las reseñas las carga SeccionResenas.
   useEffect(() => {
     let activo = true;
     pedir<Promocion[]>("/promociones", { params: { comercioId: id, porPagina: 20 } })
-      .then((r) => activo && setPromos(r.datos))
+      .then((r) => activo && setPromos(r.datos.filter((p) => estaVigente(p))))
       .catch(() => activo && setPromos([]));
     return () => {
       activo = false;
@@ -154,7 +174,8 @@ export default function FichaComercio() {
       ? aMin(abre) <= ahoraMin && ahoraMin < aMin(cierra)
       : ahoraMin >= aMin(abre);
   const altoHero = ALTO_HERO + insets.top;
-  const fotos = comercio.imagenes.map(asegurarHttps);
+  // Si ya se guardaron en el teléfono, se usan esas copias (funcionan sin datos).
+  const fotos = comercio.imagenes.map((u) => archivoLocal(u, comercio.id) ?? asegurarHttps(u));
   const tieneVideo = !!comercio.videoUrl;
 
   return (
@@ -164,7 +185,7 @@ export default function FichaComercio() {
         <View style={{ height: altoHero }}>
           {tieneVideo ? (
             <VideoPortada
-              url={asegurarHttps(comercio.videoUrl!)}
+              url={archivoLocal(comercio.videoUrl!, comercio.id) ?? asegurarHttps(comercio.videoUrl!)}
               alto={altoHero}
               reproduciendo={reproduciendo}
               alIniciar={() => setReproduciendo(true)}
@@ -312,6 +333,24 @@ export default function FichaComercio() {
                   <Image key={uri} source={{ uri }} style={estilos.miniatura} />
                 ))}
               </ScrollView>
+            )}
+            {(fotos.length > 0 || tieneVideo) && (
+              <Boton
+                texto={
+                  descarga === "guardado"
+                    ? "Guardado para ver sin datos"
+                    : descarga === "guardando"
+                      ? "Guardando…"
+                      : "Guardar fotos y video en el teléfono"
+                }
+                icono={descarga === "guardado" ? "checkmark-circle" : "download-outline"}
+                variante="blanco"
+                compacto
+                cargando={descarga === "guardando"}
+                deshabilitado={descarga === "guardado"}
+                style={estilos.botonGuardarMedios}
+                onPress={guardarParaSinDatos}
+              />
             )}
           </View>
         </View>
@@ -502,4 +541,5 @@ const estilos = StyleSheet.create({
   filaInstagram: { flexDirection: "row", alignItems: "center", gap: 8 },
   textoInstagram: { fontFamily: fuentes.textoMedio, fontSize: 14, color: colores.pizarra },
   miniatura: { width: 120, height: 90, borderRadius: 18, backgroundColor: colores.niebla },
+  botonGuardarMedios: { backgroundColor: colores.niebla },
 });

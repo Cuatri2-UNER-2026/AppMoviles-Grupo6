@@ -2,7 +2,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Boton, FondoDegradado } from "../../src/componentes";
+import { Boton, FondoDegradado, BotonRedondo } from "../../src/componentes";
 import { useSesion } from "../../src/hooks/useSesion";
 import { obtenerComercio } from "../../src/servicios/comercios";
 import { promocionesService, type Promocion } from "../../src/servicios/promociones";
@@ -57,8 +57,9 @@ export default function PanelComercioScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View>
-          <Text style={estilos.etiqueta}>Mi local</Text>
-          <Text style={estilos.titulo}>Hola, {nombre ?? "tu comercio"}</Text>
+                <BotonRedondo style={{marginBottom: 10}}/>
+                <Text style={estilos.etiqueta}>Mi local</Text>
+                <Text style={estilos.titulo}>Hola, {nombre ?? "tu comercio"}</Text>
         </View>
 
         {/* Círculo de escaneo: la pantalla de escanear pide la huella antes de abrir la cámara. */}
@@ -108,20 +109,26 @@ export default function PanelComercioScreen() {
         </View>
 
         <View style={estilos.filaBotones}>
-          <Boton
-            texto="Mis promociones"
-            variante="claro"
-            style={estilos.boton}
-            onPress={() => router.push("/panel/promociones" as any)}
-          />
-          <Boton
-            texto="Mi ficha"
-            variante="claro"
-            style={estilos.boton}
-            deshabilitado={!comercioId}
-            onPress={() => router.push({ pathname: "/comercio/[id]", params: { id: comercioId! } })}
-          />
+            <Boton
+                texto="Mis promociones"
+                variante="claro"
+                style={estilos.boton}
+                onPress={() => router.push("/panel/promociones" as any)}
+            />
+            <Boton
+                texto="Mi ficha"
+                variante="claro"
+                style={estilos.boton}
+                deshabilitado={!comercioId}
+                onPress={() => router.push({ pathname: "/comercio/[id]", params: { id: comercioId! } })}
+            />
         </View>
+        <Boton 
+            texto="Editar mi ficha" 
+            variante="indigo" 
+            style={estilos.boton}
+            onPress={() => router.push("/panel/ficha" as any)} 
+        />
       </ScrollView>
     </FondoDegradado>
   );
@@ -158,6 +165,6 @@ const estilos = StyleSheet.create({
   numero: { fontFamily: fuentes.titulo, fontSize: 44, lineHeight: 52, color: colores.pizarra, letterSpacing: -1 },
   descripcion: { fontFamily: fuentes.texto, fontSize: 13, lineHeight: 18, color: colores.gris },
 
-  filaBotones: { flexDirection: "row", gap: 12 },
+  filaBotones: { flexDirection: "row", gap: 10 },
   boton: { flex: 1 },
 });

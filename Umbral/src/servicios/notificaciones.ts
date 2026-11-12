@@ -1,4 +1,4 @@
-
+import { Platform } from "react-native";
 import * as Notifications from "./expoNotificaciones";
 import type { Promocion, Usuario } from "../tipos";
 
@@ -11,6 +11,7 @@ import {
   obtenerPromosRecordadas,
   obtenerUsuarioGuardado,
 } from "../almacenamiento/preferencias";
+import { estaVencida } from "../utils/promos";
 
 import {
   actualizarYo,
@@ -36,7 +37,15 @@ Notifications.setNotificationHandler({
 });
 
 // Solicita permisos para enviar notificaciones.
+// En Android 13+ el canal tiene que existir antes de pedir el permiso.
 export async function pedirPermiso() {
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "Promociones",
+      importance: 5, // importancia por defecto
+    });
+  }
+
   const actual = await Notifications.getPermissionsAsync();
 
   if (actual.granted) return true;
@@ -73,14 +82,12 @@ async function usuarioParaAvisos(): Promise<Usuario | null> {
 }
 
 // Obtiene promociones de favoritos y rubros elegidos,
-// evitando promociones duplicadas.
+// sin duplicados y sin promos vencidas o dadas de baja.
 async function promosDeInteres(usuario: Usuario) {
   const filtros = [
     ...usuario.favoritos.map((comercioId) => ({ comercioId })),
     ...usuario.rubrosDeInteres.map((rubroId) => ({ rubroId })),
   ];
-
-  console.log("[avisos] Filtros del usuario:", filtros);
 
   const listas = await Promise.all(
     filtros.map(async (f) => {
@@ -88,12 +95,8 @@ async function promosDeInteres(usuario: Usuario) {
         const r = await pedir<Promocion[]>("/promociones", {
           params: { ...f, porPagina: 100 },
         });
-
-        console.log("[avisos] Respuesta del filtro:", f, r.datos);
-
         return r.datos;
-      } catch (error) {
-        console.error("[avisos] Error consultando filtro:", f, error);
+      } catch {
         return [] as Promocion[];
       }
     }),
@@ -103,11 +106,7 @@ async function promosDeInteres(usuario: Usuario) {
 
   listas.flat().forEach((p) => porId.set(p.id, p));
 
-  const resultado = [...porId.values()];
-
-  console.log("[avisos] Total de promociones encontradas:", resultado.length);
-
-  return resultado;
+  return [...porId.values()].filter((p) => p.activa && !estaVencida(p));
 }
 
 // Obtiene los nombres de los comercios.
@@ -137,9 +136,7 @@ async function cancelarRecordatorios() {
   );
 }
 
-// Revisa promociones al abrir la app y al volver a primer plano.
-// Avisa sobre promociones nuevas y programa recordatorios de vencimiento.
-export async function revisarPromos() {
+async function revisarPromosInterno() {
   const usuario = await usuarioParaAvisos();
 
   if (!usuario || usuario.rol !== "vecino") return;
@@ -157,9 +154,6 @@ export async function revisarPromos() {
   // Promociones nuevas.
   const avisadas = new Set(obtenerPromosAvisadas());
   const nuevas = promos.filter((p) => !avisadas.has(p.id));
-  console.log("[avisos] Promociones de interés:", promos.map(p => p.id));
-  console.log("[avisos] Promociones ya avisadas:", [...avisadas]);
-  console.log("[avisos] Promociones nuevas:", nuevas.map(p => p.id));
 
   // Promociones que todavía no vencieron.
   const recordadas = new Set(obtenerPromosRecordadas());
@@ -228,6 +222,20 @@ export async function revisarPromos() {
   }
 
   await guardarPromosRecordadas([...recordadas].slice(-300));
+}
+
+// Revisa promociones al abrir la app y al volver a primer plano.
+// Avisa sobre promociones nuevas y programa recordatorios de vencimiento.
+// Si ya hay una revisión en curso, se reutiliza (evita avisos duplicados).
+let enCurso: Promise<void> | null = null;
+
+export function revisarPromos(): Promise<void> {
+  if (!enCurso) {
+    enCurso = revisarPromosInterno().finally(() => {
+      enCurso = null;
+    });
+  }
+  return enCurso;
 }
 
 // Activa o desactiva las notificaciones.
