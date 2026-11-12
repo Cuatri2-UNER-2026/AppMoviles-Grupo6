@@ -4,6 +4,7 @@ import { FlatList, Image, Keyboard, Pressable, RefreshControl, StyleSheet, Switc
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Aviso,
+  AvisoDatosViejos,
   EstadoCarga,
   EstadoError,
   EstadoVacio,
@@ -25,8 +26,18 @@ const ORDENES: { clave: Orden; etiqueta: string }[] = [
 
 export default function BuscarScreen() {
   const insets = useSafeAreaInsets();
-  const { comercios, rubros, promoPorComercio, cargando, refrescando, error, recargar, reintentar } =
-    useComercios();
+  const {
+    comercios,
+    rubros,
+    promoPorComercio,
+    cargando,
+    refrescando,
+    error,
+    desactualizado,
+    actualizadoEn,
+    recargar,
+    reintentar,
+  } = useComercios();
   const { coordenadas, permiso, solicitar } = useUbicacion();
   const ahora = useAhora();
 
@@ -124,6 +135,8 @@ export default function BuscarScreen() {
             <Ionicons name="chevron-down" size={14} color={colores.pizarra} />
           </Pressable>
         </View>
+
+        {desactualizado && <AvisoDatosViejos actualizadoEn={actualizadoEn} />}
 
         {permiso === "denegado" && (
           <Aviso

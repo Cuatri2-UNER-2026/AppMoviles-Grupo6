@@ -5,6 +5,7 @@ import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Aviso,
+  AvisoDatosViejos,
   Boton,
   EstadoCarga,
   EstadoError,
@@ -25,7 +26,7 @@ import { abrirComoLlegar } from "../../src/utils/enlaces";
 
 export default function MapaScreen() {
   const insets = useSafeAreaInsets();
-  const { comercios, rubros, cargando, error, reintentar } = useComercios();
+  const { comercios, rubros, cargando, error, reintentar, desactualizado, actualizadoEn } = useComercios();
   const { coordenadas, permiso, solicitar } = useUbicacion();
 
   const [rubroId, setRubroId] = useState<string | null>(null);
@@ -137,6 +138,8 @@ export default function MapaScreen() {
             solido
             contentStyle={{ paddingHorizontal: 16 }}
           />
+
+          {desactualizado && <AvisoDatosViejos actualizadoEn={actualizadoEn} style={estilos.aviso} />}
 
           {permiso === "denegado" && (
             <Aviso

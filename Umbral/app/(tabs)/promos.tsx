@@ -75,7 +75,7 @@ export default function PromosScreen() {
       {cargando ? (
         <EstadoCarga texto="Cargando promociones…" style={estilos.estado} />
       ) : error ? (
-        <EstadoError titulo="No pudimos cargar las promos" texto={error} onReintentar={reintentar} style={estilos.estado} />
+        <EstadoError titulo="No pudimos cargar las promos" texto="Las promociones necesitan internet. Revisá tu conexión e intentá de nuevo." onReintentar={reintentar} style={estilos.estado} />
       ) : visibles.length === 0 ? (
         <EstadoVacio
           icono="pricetag-outline"

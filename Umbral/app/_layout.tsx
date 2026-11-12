@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { Introduccion } from "../src/componentes/intro";
 import { useAvisos } from "../src/hooks/useAvisos";
+import { useSincronizarResenas } from "../src/hooks/useSincronizarResenas";
 import { archivosDeFuentes } from "../src/tema";
 import { BannerSinConexion } from "../src/componentes/estados/BannerSinConexion";
 
@@ -11,6 +12,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   useAvisos();
+  useSincronizarResenas();
   const [fuentesListas, errorFuentes] = useFonts(archivosDeFuentes);
   const [intro, setIntro] = useState(true);
 

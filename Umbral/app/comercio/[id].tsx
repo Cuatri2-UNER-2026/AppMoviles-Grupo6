@@ -7,15 +7,26 @@ import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
-import { AccionesComercio, Aviso, Boton, BotonRedondo, EstadoCarga, EstadoError, Estrellas, IndicadorApertura, Insignia, Puntaje, SeccionTitulo } from "../../src/componentes";
+import {
+  AccionesComercio,
+  Aviso,
+  Boton,
+  BotonRedondo,
+  EstadoCarga,
+  EstadoError,
+  IndicadorApertura,
+  Insignia,
+  Puntaje,
+  SeccionResenas,
+  SeccionTitulo,
+} from "../../src/componentes";
 import { useCarga } from "../../src/hooks/useCarga";
 import { useSesion } from "../../src/hooks/useSesion";
 import { pedir } from "../../src/servicios/cliente";
 import { listarRubros, obtenerComercio } from "../../src/servicios/comercios";
 import { alternarFavorito } from "../../src/servicios/favoritos";
-import { resenasService } from "../../src/servicios/resenas";
 import { colores, fuentes } from "../../src/tema";
-import type { Comercio, Promocion, Resena, Rubro } from "../../src/tipos";
+import type { Comercio, Promocion, Rubro } from "../../src/tipos";
 import { calcularEstado } from "../../src/utils/abiertoAhora";
 import { abrirInstagram } from "../../src/utils/enlaces";
 import { fechaCorta } from "../../src/utils/fechas";
@@ -43,8 +54,6 @@ const tramosDelDia = (c: Comercio, dia: number) =>
 const asegurarHttps = (url: string) =>
   url.replace(/^http:\/\/(?!localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/, "https://");
 
-type ResenaConAutor = Resena & { usuarioNombre?: string };
-
 export default function FichaComercio() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -63,25 +72,16 @@ export default function FichaComercio() {
   const rubro = datos?.rubro ?? null;
 
   const [promos, setPromos] = useState<Promocion[]>([]);
-  const [resenas, setResenas] = useState<Resena[] | null>(null);
-  const [errorResenas, setErrorResenas] = useState(false);
   const [verSemana, setVerSemana] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [reproduciendo, setReproduciendo] = useState(false);
 
-  // Promos y reseñas cargan aparte: si fallan, la ficha se ve igual.
+  // Las promos cargan aparte: si fallan, la ficha se ve igual. Las reseñas las carga SeccionResenas.
   useEffect(() => {
     let activo = true;
     pedir<Promocion[]>("/promociones", { params: { comercioId: id, porPagina: 20 } })
       .then((r) => activo && setPromos(r.datos))
       .catch(() => activo && setPromos([]));
-    resenasService
-      .obtenerDeComercio(id, 1, 20)
-      .then((lista) => {
-        if (!activo) return;
-        setResenas([...lista].sort((a, b) => Date.parse(b.creadaEn) - Date.parse(a.creadaEn)));
-      })
-      .catch(() => activo && setErrorResenas(true));
     return () => {
       activo = false;
     };
@@ -285,29 +285,7 @@ export default function FichaComercio() {
           ))}
 
           {/* ───── Reseñas ───── */}
-          {resenas === null && !errorResenas && <EstadoCarga texto="Cargando reseñas…" style={estilos.cargaInline} />}
-          {errorResenas && <Text style={estilos.textoEstado}>No pudimos cargar las reseñas ahora.</Text>}
-          {resenas?.length === 0 && (
-            <View style={estilos.tarjeta}>
-              <Text style={estilos.parrafo}>Todavía no hay reseñas de este comercio.</Text>
-            </View>
-          )}
-          {resenas?.slice(0, 5).map((r) => (
-            <View key={r.id} style={estilos.tarjeta}>
-              <View style={{ gap: 4 }}>
-                <Text style={estilos.autor}>
-                  {(r as ResenaConAutor).usuarioNombre ?? "Vecino"} <Estrellas cantidad={r.estrellas} />
-                </Text>
-                <Text style={estilos.parrafo}>{r.comentario}</Text>
-              </View>
-              {r.respuesta && (
-                <View style={estilos.respuesta}>
-                  <Text style={estilos.tituloRespuesta}>Respuesta del comercio</Text>
-                  <Text style={estilos.parrafo}>{r.respuesta}</Text>
-                </View>
-              )}
-            </View>
-          ))}
+          <SeccionResenas comercioId={id} puntaje={comercio.puntaje} cantidad={comercio.cantidadResenas} />
 
           {/* ───── Sobre el local ───── */}
           <View style={estilos.tarjeta}>
@@ -517,11 +495,6 @@ const estilos = StyleSheet.create({
   detallePromo: { fontFamily: fuentes.textoMedio, fontSize: 14, color: colores.gris },
   botonPromo: { alignSelf: "flex-start", marginTop: 12 },
 
-  // reseñas
-  autor: { fontFamily: fuentes.textoNegrita, fontSize: 15, color: colores.pizarra },
-  respuesta: { backgroundColor: colores.niebla, borderRadius: 18, padding: 12, gap: 4 },
-  tituloRespuesta: { fontFamily: fuentes.textoNegrita, fontSize: 12, color: colores.indigo },
-
   // sobre el local
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { backgroundColor: colores.lila, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
@@ -529,6 +502,4 @@ const estilos = StyleSheet.create({
   filaInstagram: { flexDirection: "row", alignItems: "center", gap: 8 },
   textoInstagram: { fontFamily: fuentes.textoMedio, fontSize: 14, color: colores.pizarra },
   miniatura: { width: 120, height: 90, borderRadius: 18, backgroundColor: colores.niebla },
-  cargaInline: { flex: 0, paddingVertical: 16 },
-  textoEstado: { fontFamily: fuentes.texto, fontSize: 13, color: colores.gris, textAlign: "center" },
 });
