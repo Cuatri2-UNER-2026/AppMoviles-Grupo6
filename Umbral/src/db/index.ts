@@ -4,9 +4,9 @@ let abierta: Promise<SQLite.SQLiteDatabase> | null = null;
 
 /** Abre la base local una sola vez y crea las tablas si todavía no existen. */
 export function abrirBase() {
-  abierta ??= (async () => {
-    const db = await SQLite.openDatabaseAsync("umbral.db");
-    await db.execAsync(`
+    abierta ??= (async () => {
+        const db = await SQLite.openDatabaseAsync("umbral.db");
+        await db.execAsync(`
       CREATE TABLE IF NOT EXISTS resenas_pendientes (
         id TEXT PRIMARY KEY NOT NULL,
         comercio_id TEXT NOT NULL,
@@ -39,7 +39,7 @@ export function abrirBase() {
         valor TEXT NOT NULL
       );
     `);
-    return db;
-  })();
-  return abierta;
+        return db;
+    })();
+    return abierta;
 }

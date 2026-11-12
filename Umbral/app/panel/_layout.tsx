@@ -5,22 +5,30 @@ import { useSesion } from "../../src/hooks/useSesion";
 import { colores } from "../../src/tema";
 
 export default function PanelLayout() {
-  const sesion = useSesion();
-  const esComercio = sesion.estado === "activa" && sesion.usuario.rol === "comercio";
+    const sesion = useSesion();
+    const esComercio =
+        sesion.estado === "activa" && sesion.usuario.rol === "comercio";
 
-  useEffect(() => {
-    if (sesion.estado === "cargando" || esComercio) return;
+    useEffect(() => {
+        if (sesion.estado === "cargando" || esComercio) return;
 
-    if (sesion.estado === "bloqueada") router.replace("/yo" as any);
-    else if (sesion.estado === "sin-sesion") router.replace("/login" as any);
-    else router.replace("/(tabs)" as any); // vecino: no tiene acceso al panel
-  }, [sesion, esComercio]);
+        if (sesion.estado === "bloqueada") router.replace("/yo" as any);
+        else if (sesion.estado === "sin-sesion")
+            router.replace("/login" as any);
+        else router.replace("/(tabs)" as any); // vecino: no tiene acceso al panel
+    }, [sesion, esComercio]);
 
-  if (esComercio) return <Stack screenOptions={{ headerShown: false }} />;
+    if (esComercio) return <Stack screenOptions={{ headerShown: false }} />;
 
-  return (
-    <FondoDegradado colores={[colores.salvia, colores.niebla, colores.niebla, colores.lila]}>
-      <EstadoCarga texto="" />
-    </FondoDegradado>
-  );
+    return (
+        <FondoDegradado
+            colores={[
+                colores.salvia,
+                colores.niebla,
+                colores.niebla,
+                colores.lila,
+            ]}>
+            <EstadoCarga texto="" />
+        </FondoDegradado>
+    );
 }

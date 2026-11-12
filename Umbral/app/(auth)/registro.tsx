@@ -1,6 +1,6 @@
 import { Link, router } from "expo-router";
-import { useState } from "react";
-import { Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { Text, TextInput, View } from "react-native";
 import { Campo, EMAIL_VALIDO, estilos, PantallaAuth } from "../../src/componentes/formularioAuth";
 import { Boton } from "../../src/componentes/ui/Boton";
 import { registrar } from "../../src/servicios/auth";
@@ -22,12 +22,17 @@ export default function Registro() {
     const [errores, setErrores] = useState<Errores>({});
     const [errorApi, setErrorApi] = useState<string | null>(null);
     const [enviando, setEnviando] = useState(false);
+    const emailRef = useRef<TextInput>(null);
+    const contrasenaRef = useRef<TextInput>(null);
+    const repetirRef = useRef<TextInput>(null);
 
     function validar() {
         const e: Errores = {};
         if (nombre.trim().length < 2) e.nombre = "Escribí tu nombre.";
+
         if (!email.trim()) e.email = "Escribí tu email.";
         else if (!EMAIL_VALIDO.test(email.trim())) e.email = "Ese email no parece válido.";
+        
         if (contrasena.length < 8) e.contrasena = "Tiene que tener al menos 8 caracteres.";
         if (repetir !== contrasena) e.repetir = "Las contraseñas no coinciden.";
         setErrores(e);
@@ -61,16 +66,22 @@ export default function Registro() {
             error={errores.nombre}
             autoCapitalize="words"
             autoComplete="name"
+            siguiente={emailRef}
             />
+
             <Campo
+            inputRef={emailRef}
             etiqueta="Email"
             valor={email}
             alCambiar={setEmail}
             error={errores.email}
             keyboardType="email-address"
             autoComplete="email"
+            siguiente={contrasenaRef}
             />
+
             <Campo
+            inputRef={contrasenaRef}
             etiqueta="Contraseña"
             valor={contrasena}
             alCambiar={setContrasena}
@@ -78,13 +89,18 @@ export default function Registro() {
             placeholder="Mínimo 8 caracteres"
             secureTextEntry
             autoComplete="new-password"
+            siguiente={repetirRef}
             />
+
             <Campo
+            inputRef={repetirRef}
             etiqueta="Repetí la contraseña"
             valor={repetir}
             alCambiar={setRepetir}
             error={errores.repetir}
             secureTextEntry
+            returnKeyType="go"
+            onSubmitEditing={enviar}
             />
 
             {errorApi && <Text style={estilos.errorApi}>{errorApi}</Text>}

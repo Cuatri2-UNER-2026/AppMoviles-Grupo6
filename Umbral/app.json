@@ -75,7 +75,8 @@
         {
           "cameraPermission": "Umbral usa la cámara para sacar fotos y grabar el video de tu comercio."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

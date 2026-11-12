@@ -11,6 +11,8 @@ export { SeccionTitulo } from "./ui/SeccionTitulo";
 export { Segmentos } from "./ui/Segmentos";
 export { TarjetaVidrio } from "./ui/TarjetaVidrio";
 export { TarjetaAccion } from "./ui/TarjetaAccion";
+export { CampoFecha } from "./ui/CampoFecha";
+export { ScrollFormulario } from "./ui/ScrollFormulario";
 // estados
 export { AvisoDatosViejos } from "./estados/AvisoDatosViejos";
 export { BannerSinConexion } from "./estados/BannerSinConexion";

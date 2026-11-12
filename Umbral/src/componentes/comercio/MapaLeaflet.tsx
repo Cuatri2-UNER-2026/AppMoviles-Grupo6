@@ -7,26 +7,26 @@ import type { Coordenadas } from "../../tipos";
 import { EstadoCarga, EstadoError } from "../estados/Estados";
 
 export interface PinMapa {
-  id: string;
-  lat: number;
-  lng: number;
-  color: string;
+    id: string;
+    lat: number;
+    lng: number;
+    color: string;
 }
 
 export interface FocoMapa {
-  latitud: number;
-  longitud: number;
-  zoom: number;
+    latitud: number;
+    longitud: number;
+    zoom: number;
 }
 
 interface Props {
-  pines: PinMapa[];
-  activoId: string | null;
-  ubicacion: Coordenadas | null;
-  /** Cada vez que llega un objeto nuevo, el mapa se mueve ahí. */
-  foco: FocoMapa | null;
-  onElegir: (id: string) => void;
-  onTocarMapa: () => void;
+    pines: PinMapa[];
+    activoId: string | null;
+    ubicacion: Coordenadas | null;
+    /** Cada vez que llega un objeto nuevo, el mapa se mueve ahí. */
+    foco: FocoMapa | null;
+    onElegir: (id: string) => void;
+    onTocarMapa: () => void;
 }
 
 // Centro de Concepción del Uruguay.
@@ -126,93 +126,115 @@ const HTML = `<!DOCTYPE html>
 const FUENTE = { html: HTML, baseUrl: "https://umbral.app" };
 
 /** Mapa de OpenStreetMap con Leaflet dentro de un WebView. Los pines y la ubicación se envían por JS. */
-export function MapaLeaflet({ pines, activoId, ubicacion, foco, onElegir, onTocarMapa }: Props) {
-  const ref = useRef<WebView>(null);
-  const [listo, setListo] = useState(false);
-  const [falla, setFalla] = useState(false);
-  const [intento, setIntento] = useState(0);
+export function MapaLeaflet({
+    pines,
+    activoId,
+    ubicacion,
+    foco,
+    onElegir,
+    onTocarMapa,
+}: Props) {
+    const ref = useRef<WebView>(null);
+    const [listo, setListo] = useState(false);
+    const [falla, setFalla] = useState(false);
+    const [intento, setIntento] = useState(0);
 
-  const ejecutar = useCallback((js: string) => ref.current?.injectJavaScript(`${js}; true;`), []);
+    const ejecutar = useCallback(
+        (js: string) => ref.current?.injectJavaScript(`${js}; true;`),
+        [],
+    );
 
-  // Si en 15 segundos no cargó (sin internet, por ejemplo), mostramos el error.
-  useEffect(() => {
-    if (listo) return;
-    const t = setTimeout(() => setFalla(true), 15000);
-    return () => clearTimeout(t);
-  }, [listo, intento]);
+    // Si en 15 segundos no cargó (sin internet, por ejemplo), mostramos el error.
+    useEffect(() => {
+        if (listo) return;
+        const t = setTimeout(() => setFalla(true), 15000);
+        return () => clearTimeout(t);
+    }, [listo, intento]);
 
-  useEffect(() => {
-    if (listo) ejecutar(`window.setPines(${JSON.stringify(pines)})`);
-  }, [listo, pines, ejecutar]);
+    useEffect(() => {
+        if (listo) ejecutar(`window.setPines(${JSON.stringify(pines)})`);
+    }, [listo, pines, ejecutar]);
 
-  useEffect(() => {
-    if (listo) ejecutar(`window.setActivo(${JSON.stringify(activoId)})`);
-  }, [listo, activoId, pines, ejecutar]);
+    useEffect(() => {
+        if (listo) ejecutar(`window.setActivo(${JSON.stringify(activoId)})`);
+    }, [listo, activoId, pines, ejecutar]);
 
-  useEffect(() => {
-    if (!listo) return;
-    ejecutar(ubicacion ? `window.setYo(${ubicacion.latitud}, ${ubicacion.longitud})` : "window.setYo(null, null)");
-  }, [listo, ubicacion, ejecutar]);
+    useEffect(() => {
+        if (!listo) return;
+        ejecutar(
+            ubicacion
+                ? `window.setYo(${ubicacion.latitud}, ${ubicacion.longitud})`
+                : "window.setYo(null, null)",
+        );
+    }, [listo, ubicacion, ejecutar]);
 
-  useEffect(() => {
-    if (listo && foco) ejecutar(`window.irA(${foco.latitud}, ${foco.longitud}, ${foco.zoom})`);
-  }, [listo, foco, ejecutar]);
+    useEffect(() => {
+        if (listo && foco)
+            ejecutar(
+                `window.irA(${foco.latitud}, ${foco.longitud}, ${foco.zoom})`,
+            );
+    }, [listo, foco, ejecutar]);
 
-  function alMensaje(e: WebViewMessageEvent) {
-    try {
-      const m = JSON.parse(e.nativeEvent.data);
-      if (m.tipo === "listo") {
-        setListo(true);
-        setFalla(false);
-      } else if (m.tipo === "error") setFalla(true);
-      else if (m.tipo === "pin") onElegir(m.id);
-      else if (m.tipo === "mapa") onTocarMapa();
-    } catch {
-      // mensaje que no es nuestro: se ignora
+    function alMensaje(e: WebViewMessageEvent) {
+        try {
+            const m = JSON.parse(e.nativeEvent.data);
+            if (m.tipo === "listo") {
+                setListo(true);
+                setFalla(false);
+            } else if (m.tipo === "error") setFalla(true);
+            else if (m.tipo === "pin") onElegir(m.id);
+            else if (m.tipo === "mapa") onTocarMapa();
+        } catch {
+            // mensaje que no es nuestro: se ignora
+        }
     }
-  }
 
-  function reintentar() {
-    setListo(false);
-    setFalla(false);
-    setIntento((i) => i + 1);
-  }
+    function reintentar() {
+        setListo(false);
+        setFalla(false);
+        setIntento((i) => i + 1);
+    }
 
-  return (
-    <View style={estilos.contenedor}>
-      <WebView
-        key={intento}
-        ref={ref}
-        source={FUENTE}
-        originWhitelist={["*"]}
-        javaScriptEnabled
-        domStorageEnabled
-        setSupportMultipleWindows={false}
-        overScrollMode="never"
-        onMessage={alMensaje}
-        onError={() => setFalla(true)}
-        style={estilos.web}
-      />
-      {!listo && !falla && (
-        <View style={estilos.capa} pointerEvents="none">
-          <EstadoCarga texto="Cargando mapa…" />
+    return (
+        <View style={estilos.contenedor}>
+            <WebView
+                key={intento}
+                ref={ref}
+                source={FUENTE}
+                originWhitelist={["*"]}
+                javaScriptEnabled
+                domStorageEnabled
+                setSupportMultipleWindows={false}
+                overScrollMode="never"
+                onMessage={alMensaje}
+                onError={() => setFalla(true)}
+                style={estilos.web}
+            />
+            {!listo && !falla && (
+                <View style={estilos.capa} pointerEvents="none">
+                    <EstadoCarga texto="Cargando mapa…" />
+                </View>
+            )}
+            {falla && !listo && (
+                <View
+                    style={[estilos.capa, { backgroundColor: colores.niebla }]}>
+                    <EstadoError
+                        titulo="No pudimos cargar el mapa"
+                        texto="Revisá tu conexión e intentá de nuevo."
+                        onReintentar={reintentar}
+                    />
+                </View>
+            )}
         </View>
-      )}
-      {falla && !listo && (
-        <View style={[estilos.capa, { backgroundColor: colores.niebla }]}>
-          <EstadoError
-            titulo="No pudimos cargar el mapa"
-            texto="Revisá tu conexión e intentá de nuevo."
-            onReintentar={reintentar}
-          />
-        </View>
-      )}
-    </View>
-  );
+    );
 }
 
 const estilos = StyleSheet.create({
-  contenedor: { flex: 1, backgroundColor: colores.niebla },
-  web: { flex: 1, backgroundColor: "transparent" },
-  capa: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
+    contenedor: { flex: 1, backgroundColor: colores.niebla },
+    web: { flex: 1, backgroundColor: "transparent" },
+    capa: {
+        ...StyleSheet.absoluteFill,
+        alignItems: "center",
+        justifyContent: "center",
+    },
 });

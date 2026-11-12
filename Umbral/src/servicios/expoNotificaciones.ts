@@ -5,8 +5,8 @@
 export { SchedulableTriggerInputTypes } from "expo-notifications/build/Notifications.types";
 export { setNotificationHandler } from "expo-notifications/build/NotificationsHandler";
 export {
-  getPermissionsAsync,
-  requestPermissionsAsync,
+    getPermissionsAsync,
+    requestPermissionsAsync,
 } from "expo-notifications/build/NotificationPermissions";
 export { addNotificationResponseReceivedListener } from "expo-notifications/build/NotificationsEmitter";
 export { setNotificationChannelAsync } from "expo-notifications/build/setNotificationChannelAsync";
