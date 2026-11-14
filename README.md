@@ -7,7 +7,7 @@ Aplicación móvil del **Directorio de Comercios del Centro Comercial, Industria
 
 ## Descarga de la app (APK)
 
-**APK de Android (build de preview):** [Build Final](https://expo.dev/accounts/valentina_angeletti22/projects/umbral/builds/6558c4d3-327f-4419-89f8-8301fa555e48)
+**APK de Android (build de preview):** [Build Final](https://expo.dev/accounts/valentina_angeletti22/projects/umbral/builds/4aede1e9-3e4f-46c8-8b35-4cbb1bb9fae3)
 
 Se instala directo en el teléfono, sin Metro ni computadora. Al abrir el link desde el teléfono, tocá **Install** y aceptá la instalación de fuentes desconocidas cuando Android lo pida.
 
